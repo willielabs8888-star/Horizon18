@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: horizon18
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python backend/main.py"
+    healthCheckPath: /api/health

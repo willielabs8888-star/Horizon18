@@ -1,0 +1,12 @@
+# Horizon18 — Dependencies
+#
+# The web app (backend/main.py) has ZERO external dependencies.
+# It uses only Python's built-in http.server module.
+#
+# matplotlib is only needed for CLI chart generation (cli.py).
+# The web app runs without it.
+#
+# Render requires a requirements.txt to exist. If you only deploy the
+# web app, this file can be empty — the server will start fine.
+
+matplotlib>=3.7
