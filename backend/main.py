@@ -30,6 +30,31 @@ from backend.api import handle_simulate
 PORT = int(os.environ.get("PORT", 8000))
 FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
 
+# Simple analytics — persisted to disk so it survives restarts
+_ANALYTICS_FILE = os.path.join(PROJECT_ROOT, "analytics.json")
+
+def _load_analytics():
+    try:
+        with open(_ANALYTICS_FILE, "r") as f:
+            return json.loads(f.read())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"page_views": 0, "simulations": 0, "first_seen": None}
+
+def _save_analytics(data):
+    try:
+        with open(_ANALYTICS_FILE, "w") as f:
+            f.write(json.dumps(data))
+    except Exception:
+        pass
+
+def _track_event(event_type):
+    from datetime import datetime
+    data = _load_analytics()
+    data[event_type] = data.get(event_type, 0) + 1
+    if not data.get("first_seen"):
+        data["first_seen"] = datetime.now().isoformat()
+    _save_analytics(data)
+
 
 class APIHandler(BaseHTTPRequestHandler):
     """Serves JSON API endpoints and static frontend files."""
@@ -87,6 +112,11 @@ class APIHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"status": "ok"})
             return
 
+        if path == "/api/analytics":
+            data = _load_analytics()
+            self._send_json(200, data)
+            return
+
         if path == "/api/options":
             self._send_json(200, _get_options())
             return
@@ -112,6 +142,7 @@ class APIHandler(BaseHTTPRequestHandler):
         # --- Frontend static files ---
         # Root → serve index.html
         if path == "/" or path == "":
+            _track_event("page_views")
             self._send_file(os.path.join(FRONTEND_DIR, "index.html"))
             return
 
@@ -150,6 +181,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": f"Invalid JSON: {e}"})
                 return
 
+            _track_event("simulations")
             result = handle_simulate(body)
             self._send_json(result["status"], result["body"])
 

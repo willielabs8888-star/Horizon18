@@ -1916,6 +1916,32 @@
             </div>
           </div>
 
+          {/* Share results */}
+          <div className="card" style={{textAlign: "center", padding: "20px 24px"}}>
+            <p style={{fontWeight: 600, marginBottom: 12}}>Found this useful?</p>
+            <div style={{display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap"}}>
+              <button className="btn btn-primary" style={{padding: "10px 20px", fontSize: 13}}
+                onClick={() => {
+                  const text = `I just compared ${results.length} career paths on Horizon18 — a free tool that shows the financial reality of college, trades, military, and more over ${projYears} years. Check it out:`;
+                  const url = "https://horizon18.app";
+                  if (navigator.share) {
+                    navigator.share({ title: "Horizon18", text, url }).catch(() => {});
+                  } else {
+                    navigator.clipboard.writeText(text + " " + url).then(() => {
+                      alert("Link copied to clipboard!");
+                    });
+                  }
+                }}>
+                Share Results
+              </button>
+              <a className="btn btn-secondary" style={{padding: "10px 20px", fontSize: 13, textDecoration: "none", display: "inline-block"}}
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent("I just compared career paths on @horizon18 — college, trades, military & more. Free tool that shows the real financial picture:")}&url=${encodeURIComponent("https://horizon18.app")}`}
+                target="_blank" rel="noopener">
+                Post on X
+              </a>
+            </div>
+          </div>
+
           {/* How the Math Works */}
           <HowItWorks />
 
@@ -2231,6 +2257,33 @@
             <h1>Horizon18</h1>
             <p>Compare paths. Project outcomes. Decide with data.</p>
           </div>
+
+          {page === "quiz" && !quizData && (
+            <div style={{maxWidth: 640, margin: "0 auto 24px", textAlign: "center"}}>
+              <p style={{color: "var(--text)", fontSize: 16, lineHeight: 1.6, marginBottom: 16}}>
+                College, trades, military, or straight to work — which path actually builds
+                more wealth over time? Horizon18 runs the numbers for <em>your</em> situation
+                using real salary data from the Bureau of Labor Statistics.
+              </p>
+              <div style={{display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 8}}>
+                <div style={{background: "var(--surface)", borderRadius: 8, padding: "10px 16px", fontSize: 13}}>
+                  <span style={{color: "var(--accent)", fontWeight: 700}}>5</span> <span style={{color: "var(--text-dim)"}}>life paths</span>
+                </div>
+                <div style={{background: "var(--surface)", borderRadius: 8, padding: "10px 16px", fontSize: 13}}>
+                  <span style={{color: "var(--accent)", fontWeight: 700}}>92</span> <span style={{color: "var(--text-dim)"}}>metro areas</span>
+                </div>
+                <div style={{background: "var(--surface)", borderRadius: 8, padding: "10px 16px", fontSize: 13}}>
+                  <span style={{color: "var(--accent)", fontWeight: 700}}>18</span> <span style={{color: "var(--text-dim)"}}>majors</span>
+                </div>
+                <div style={{background: "var(--surface)", borderRadius: 8, padding: "10px 16px", fontSize: 13}}>
+                  <span style={{color: "var(--accent)", fontWeight: 700}}>12</span> <span style={{color: "var(--text-dim)"}}>trades</span>
+                </div>
+              </div>
+              <p style={{color: "var(--text-dim)", fontSize: 13}}>
+                Free. No signup. No ads. Built for high school seniors and anyone rethinking their path.
+              </p>
+            </div>
+          )}
 
           {page === "quiz" && <QuizPage onComplete={handleQuizComplete} />}
           {page === "results" && <ResultsPage quiz={quizData} onReset={handleReset} />}
