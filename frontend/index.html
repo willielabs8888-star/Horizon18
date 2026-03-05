@@ -1769,7 +1769,7 @@
                     <label style={{fontSize: 13}}>Savings Rate</label>
                     <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{Math.round(savingsRate * 100)}%</span>
                   </div>
-                  <input type="range" min={0} max={40} step={1} value={Math.round(savingsRate * 100)}
+                  <input type="range" min={0} max={100} step={1} value={Math.round(savingsRate * 100)}
                     onChange={e => { const v = parseInt(e.target.value) / 100; handleAssumptionChange(setSavingsRate, v, v, investReturn, taxRate); }}
                     style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
                   <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
@@ -1782,7 +1782,7 @@
                     <label style={{fontSize: 13}}>Expected Annual Investment Return</label>
                     <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{(investReturn * 100).toFixed(1)}%</span>
                   </div>
-                  <input type="range" min={30} max={100} step={5} value={Math.round(investReturn * 1000)}
+                  <input type="range" min={0} max={200} step={5} value={Math.round(investReturn * 1000)}
                     onChange={e => { const v = parseInt(e.target.value) / 1000; handleAssumptionChange(setInvestReturn, v, savingsRate, v, taxRate); }}
                     style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
                   <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
