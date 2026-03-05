@@ -72,17 +72,31 @@ class TestSchoolType(unittest.TestCase):
 
 class TestMajor(unittest.TestCase):
     def test_all_majors(self):
-        self.assertEqual(len(Major), 6)
+        self.assertEqual(len(Major), 22)
         values = {m.value for m in Major}
-        expected = {"stem", "business", "healthcare", "liberal_arts", "education", "undecided"}
+        # New granular majors + legacy aliases
+        expected = {
+            "computer_science", "engineering", "biology", "environmental_science",
+            "nursing", "kinesiology",
+            "business_finance", "accounting", "marketing",
+            "psychology", "criminal_justice", "political_science", "communications",
+            "english", "social_work",
+            "education", "art_design", "undecided",
+            # Legacy aliases
+            "stem", "business", "healthcare", "liberal_arts",
+        }
         self.assertEqual(values, expected)
 
 
 class TestTradeType(unittest.TestCase):
     def test_all_trades(self):
-        self.assertEqual(len(TradeType), 4)
+        self.assertEqual(len(TradeType), 12)
         values = {t.value for t in TradeType}
-        expected = {"electrician", "plumber", "hvac", "carpenter"}
+        expected = {
+            "electrician", "plumber", "hvac", "carpenter",
+            "welder", "automotive_tech", "diesel_mechanic", "cnc_machinist",
+            "lineworker", "ironworker", "elevator_mechanic", "heavy_equipment_op",
+        }
         self.assertEqual(values, expected)
 
 

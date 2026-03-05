@@ -41,12 +41,39 @@ class SchoolType(str, Enum):
 
 
 class Major(str, Enum):
+    # STEM cluster
+    COMPUTER_SCIENCE = "computer_science"
+    ENGINEERING = "engineering"
+    BIOLOGY = "biology"
+    ENVIRONMENTAL_SCIENCE = "environmental_science"
+
+    # Health cluster
+    NURSING = "nursing"
+    KINESIOLOGY = "kinesiology"
+
+    # Business cluster
+    BUSINESS_FINANCE = "business_finance"
+    ACCOUNTING = "accounting"
+    MARKETING = "marketing"
+
+    # Social science / humanities cluster
+    PSYCHOLOGY = "psychology"
+    CRIMINAL_JUSTICE = "criminal_justice"
+    POLITICAL_SCIENCE = "political_science"
+    COMMUNICATIONS = "communications"
+    ENGLISH = "english"
+    SOCIAL_WORK = "social_work"
+
+    # Other
+    EDUCATION = "education"
+    ART_DESIGN = "art_design"
+    UNDECIDED = "undecided"
+
+    # Legacy aliases — kept for backward compatibility with saved quizzes
     STEM = "stem"
     BUSINESS = "business"
     HEALTHCARE = "healthcare"
     LIBERAL_ARTS = "liberal_arts"
-    EDUCATION = "education"
-    UNDECIDED = "undecided"
 
 
 class TradeType(str, Enum):
@@ -54,6 +81,14 @@ class TradeType(str, Enum):
     PLUMBER = "plumber"
     HVAC = "hvac"
     CARPENTER = "carpenter"
+    WELDER = "welder"
+    AUTOMOTIVE_TECH = "automotive_tech"
+    DIESEL_MECHANIC = "diesel_mechanic"
+    CNC_MACHINIST = "cnc_machinist"
+    LINEWORKER = "lineworker"
+    IRONWORKER = "ironworker"
+    ELEVATOR_MECHANIC = "elevator_mechanic"
+    HEAVY_EQUIPMENT_OP = "heavy_equipment_op"
 
 
 class WorkforceIndustry(str, Enum):
@@ -62,6 +97,13 @@ class WorkforceIndustry(str, Enum):
     FOOD_SERVICE = "food_service"
     ADMIN = "admin"
     MANUFACTURING = "manufacturing"
+    SECURITY = "security"
+    LANDSCAPING = "landscaping"
+    CUSTOMER_SERVICE = "customer_service"
+    DELIVERY_DRIVER = "delivery_driver"
+    JANITORIAL = "janitorial"
+    HOME_HEALTH_AIDE = "home_health_aide"
+    CHILDCARE = "childcare"
 
 
 class Region(str, Enum):

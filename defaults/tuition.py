@@ -25,9 +25,18 @@ ROOM_AND_BOARD_ANNUAL: dict[str, float] = {
 }
 
 # Total program cost for trade schools (NOT per-year — these are full program)
+# Sources: DOL apprenticeship data, trade school directories, industry averages
 TRADE_SCHOOL_TOTAL: dict[str, float] = {
-    "electrician": 14_640,
-    "plumber":     12_500,
-    "hvac":        12_500,
-    "carpenter":   12_550,
+    "electrician":       14_640,
+    "plumber":           12_500,
+    "hvac":              12_500,
+    "carpenter":         12_550,
+    "welder":            15_000,    # Welding program (6-18 months)
+    "automotive_tech":   20_000,    # UTI/tech school (longer programs)
+    "diesel_mechanic":   18_000,    # Diesel tech program
+    "cnc_machinist":     15_000,    # CNC/machining certificate
+    "lineworker":        10_000,    # Lineworker program (shorter, often utility-sponsored)
+    "ironworker":        12_000,    # Ironworker apprenticeship fees
+    "elevator_mechanic": 12_000,    # Elevator union apprenticeship fees
+    "heavy_equipment_op":10_000,    # Equipment operator training
 }

@@ -205,8 +205,51 @@
     .btn-secondary:hover { background: var(--surface-hover); color: var(--text); }
 
     /* Path-specific question sections */
-    .path-section { border-left: 3px solid var(--accent); padding-left: 16px; margin-bottom: 24px; }
+    .path-section { border-left: 3px solid var(--accent); padding-left: 16px; margin-bottom: 24px; transition: all 0.3s; }
     .path-section h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+
+    /* Collapsible path sections */
+    .path-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none; padding: 4px 0;
+    }
+    .path-section-header:hover { opacity: 0.85; }
+    .path-section-toggle {
+      font-size: 11px; color: var(--text-dim); transition: transform 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .path-section-toggle .chevron { display: inline-block; transition: transform 0.2s; }
+    .path-section-toggle .chevron.collapsed { transform: rotate(-90deg); }
+    .path-section-body { overflow: hidden; transition: max-height 0.3s ease; }
+    .path-section-body.collapsed { max-height: 0 !important; overflow: hidden; }
+
+    /* Path completion status badge */
+    .path-status {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12px; font-weight: 500; padding: 2px 8px;
+      border-radius: 10px; margin-left: 8px;
+    }
+    .path-status.complete { background: #065f4620; color: #10b981; }
+    .path-status.incomplete { background: #f5920020; color: #f59e0b; }
+
+    /* Missing field highlight */
+    .field-missing .form-select,
+    .field-missing .form-input {
+      border-color: #f59e0b !important;
+      box-shadow: 0 0 0 2px #f59e0b30;
+    }
+    .field-missing-hint {
+      color: #f59e0b; font-size: 12px; margin-top: 4px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    /* Needs-attention prompt for step 0 chips */
+    .instance-chip .needs-action {
+      font-size: 11px; color: #f59e0b; font-style: italic;
+    }
+    .instance-chip .configured {
+      font-size: 11px; color: #10b981;
+    }
 
     /* Chart tabs */
     .chart-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -393,12 +436,33 @@
 
     const LABEL_MAP = {
       public_in_state: "Public (In-State)", public_out_of_state: "Public (Out-of-State)",
-      private: "Private University", stem: "STEM / Engineering", business: "Business",
-      healthcare: "Healthcare / Nursing", liberal_arts: "Liberal Arts", education: "Education",
-      undecided: "Undecided", electrician: "Electrician", plumber: "Plumber", hvac: "HVAC",
-      carpenter: "Carpenter", apprenticeship: "Apprenticeship", trade_school: "Trade School",
+      private: "Private University",
+      // Majors — new granular list
+      computer_science: "Computer Science", engineering: "Engineering",
+      biology: "Biology / Pre-Med", environmental_science: "Environmental Science",
+      nursing: "Nursing", kinesiology: "Kinesiology / Exercise Science",
+      business_finance: "Business / Finance", accounting: "Accounting", marketing: "Marketing",
+      psychology: "Psychology", criminal_justice: "Criminal Justice",
+      political_science: "Political Science", communications: "Communications",
+      english: "English / Writing", social_work: "Social Work",
+      education: "Education", art_design: "Art / Design", undecided: "Undecided",
+      // Legacy major aliases (still used by older saved quizzes)
+      stem: "STEM / Engineering", business: "Business",
+      healthcare: "Healthcare / Nursing", liberal_arts: "Liberal Arts",
+      // Trades
+      electrician: "Electrician", plumber: "Plumber", hvac: "HVAC",
+      carpenter: "Carpenter", welder: "Welder", automotive_tech: "Automotive Technician",
+      diesel_mechanic: "Diesel Mechanic", cnc_machinist: "CNC Machinist",
+      lineworker: "Lineworker", ironworker: "Ironworker",
+      elevator_mechanic: "Elevator Mechanic", heavy_equipment_op: "Heavy Equipment Operator",
+      apprenticeship: "Apprenticeship", trade_school: "Trade School",
+      // Workforce
       retail: "Retail", logistics: "Logistics / Warehouse", food_service: "Food Service",
-      admin: "Office / Admin", manufacturing: "Manufacturing",
+      admin: "Office / Admin", manufacturing: "Manufacturing", security: "Security",
+      landscaping: "Landscaping", customer_service: "Customer Service / Call Center",
+      delivery_driver: "Delivery Driver", janitorial: "Janitorial / Maintenance",
+      home_health_aide: "Home Health Aide", childcare: "Childcare",
+      // Regions
       northeast: "Northeast", southeast: "Southeast", midwest: "Midwest",
       southwest: "Southwest", west_coast: "West Coast",
       national_avg: "National Average",
@@ -458,6 +522,33 @@
       const num = idx >= 0 ? idx + 1 : 1;
       const base = PATH_LABELS[inst.path_type] || inst.path_type;
       return sameType.length > 1 ? `${base} #${num}` : base;
+    }
+
+    /** Get list of missing required fields for an instance. Returns array of {field, label} */
+    function getMissingFields(inst) {
+      const pt = inst.path_type;
+      const missing = [];
+      if (pt === "college") {
+        const hasSchool = inst.use_search ? !!inst.ipeds_id : !!inst.school_type;
+        if (!hasSchool) missing.push({ field: "school_type", label: "Choose a school" });
+        if (!inst.major) missing.push({ field: "major", label: "Pick a major" });
+      } else if (pt === "cc_transfer") {
+        const hasTransfer = inst.use_transfer_search ? !!inst.ipeds_id_transfer : !!inst.transfer_university_type;
+        if (!hasTransfer) missing.push({ field: "transfer_university_type", label: "Choose a transfer university" });
+        if (!inst.major) missing.push({ field: "major", label: "Pick a major" });
+      } else if (pt === "trade") {
+        if (!inst.trade_type) missing.push({ field: "trade_type", label: "Pick a trade" });
+      } else if (pt === "workforce") {
+        if (!inst.industry) missing.push({ field: "industry", label: "Pick an industry" });
+      } else if (pt === "military") {
+        if (inst.use_gi_bill && !inst.gi_bill_major) missing.push({ field: "gi_bill_major", label: "Pick a post-service major" });
+      }
+      return missing;
+    }
+
+    /** Check if an instance is fully configured */
+    function isInstanceComplete(inst) {
+      return getMissingFields(inst).length === 0;
     }
 
     /** Get a short config summary for an instance (for review step). */
@@ -624,19 +715,30 @@
 
     // Major → national avg starting salary (mirrors defaults/salaries.py)
     const MAJOR_SALARY = {
-      stem: 80000, business: 65276, healthcare: 85000,
-      liberal_arts: 39349, education: 44860, undecided: 52000,
+      computer_science: 76251, engineering: 78731, biology: 45000,
+      environmental_science: 48500, nursing: 77600, kinesiology: 48000,
+      business_finance: 65276, accounting: 61500, marketing: 57000,
+      psychology: 40000, criminal_justice: 43000, political_science: 44500,
+      communications: 45500, english: 40000, social_work: 41000,
+      education: 44860, art_design: 44000, undecided: 52000,
+      // Legacy aliases
+      stem: 78731, business: 65276, healthcare: 77600, liberal_arts: 40000,
     };
 
     // Trade → journeyman salary (mirrors defaults/trades.py)
     const TRADE_SALARY = {
       electrician: 67810, plumber: 64960, hvac: 54100, carpenter: 60083,
+      welder: 49000, automotive_tech: 48000, diesel_mechanic: 58000,
+      cnc_machinist: 49970, lineworker: 82340, ironworker: 62000,
+      elevator_mechanic: 99000, heavy_equipment_op: 55280,
     };
 
     // Workforce → entry salary (mirrors defaults/workforce.py)
     const INDUSTRY_SALARY = {
-      retail: 32240, logistics: 31137, food_service: 28245,
-      admin: 35419, manufacturing: 34320,
+      retail: 32240, logistics: 36500, food_service: 28245,
+      admin: 35419, manufacturing: 34320, security: 36530,
+      landscaping: 34480, customer_service: 38200, delivery_driver: 38180,
+      janitorial: 31990, home_health_aide: 33530, childcare: 28520,
     };
 
     function SchoolStatsPanel({ school, schoolType, major, metroArea, isCC, years }) {
@@ -824,6 +926,8 @@
       const [step, setStep] = useState(0);
       const [instances, setInstances] = useState([]);
       const [metros, setMetros] = useState([]);
+      const [collapsed, setCollapsed] = useState({});   // instance_id → bool
+      const [showMissing, setShowMissing] = useState(false); // highlight empty fields after Continue attempt
       const [shared, setShared] = useState({
         metro_area: "national_avg",
         living_at_home: false,
@@ -865,9 +969,17 @@
       };
 
       const updateInstance = (instanceId, key, val) => {
-        setInstances(prev => prev.map(i =>
-          i.instance_id === instanceId ? {...i, [key]: val} : i
-        ));
+        setInstances(prev => {
+          const updated = prev.map(i =>
+            i.instance_id === instanceId ? {...i, [key]: val} : i
+          );
+          // Auto-collapse section if it just became complete
+          const inst = updated.find(i => i.instance_id === instanceId);
+          if (inst && isInstanceComplete(inst)) {
+            setTimeout(() => setCollapsed(c => ({...c, [instanceId]: true})), 600);
+          }
+          return updated;
+        });
       };
 
       const canNext = () => {
@@ -893,7 +1005,31 @@
         return true;
       };
 
+      const toggleCollapse = (id) => setCollapsed(prev => ({...prev, [id]: !prev[id]}));
+
       const next = () => {
+        // On step 1, if can't proceed, highlight missing fields and scroll to first
+        if (step === 1 && !canNext()) {
+          setShowMissing(true);
+          // Expand collapsed sections that have missing fields
+          const newCollapsed = {...collapsed};
+          let firstMissingEl = null;
+          for (const inst of instances) {
+            if (!isInstanceComplete(inst)) {
+              newCollapsed[inst.instance_id] = false;
+              if (!firstMissingEl) {
+                setTimeout(() => {
+                  const el = document.getElementById(`path-${inst.instance_id}`);
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 100);
+                firstMissingEl = true;
+              }
+            }
+          }
+          setCollapsed(newCollapsed);
+          return;
+        }
+        setShowMissing(false);
         if (step < QUIZ_STEPS.length - 1) setStep(step + 1);
         else {
           // Build the API request — strip internal UI fields (prefixed with _)
@@ -942,15 +1078,23 @@
                 </div>
                 {typeInstances.length > 0 && (
                   <div className="instance-chips">
-                    {typeInstances.map((inst, idx) => (
-                      <div key={inst.instance_id} className="instance-chip"
-                        style={{borderColor: instanceColor(inst, instances)}}>
-                        <span style={{color: instanceColor(inst, instances)}}>
-                          #{idx+1} {instanceSummary(inst) || "Not configured"}
-                        </span>
-                        <button className="remove-btn" onClick={() => removeInstance(inst.instance_id)}>x</button>
-                      </div>
-                    ))}
+                    {typeInstances.map((inst, idx) => {
+                      const complete = isInstanceComplete(inst);
+                      const missing = getMissingFields(inst);
+                      return (
+                        <div key={inst.instance_id} className="instance-chip"
+                          style={{borderColor: instanceColor(inst, instances)}}>
+                          <span style={{color: instanceColor(inst, instances)}}>
+                            #{idx+1}{" "}
+                            {complete
+                              ? <span className="configured">{instanceSummary(inst)}</span>
+                              : <span className="needs-action">{missing.map(m => m.label).join(", ")}</span>
+                            }
+                          </span>
+                          <button className="remove-btn" onClick={() => removeInstance(inst.instance_id)}>x</button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -988,20 +1132,45 @@
             </div>
           </div>
 
-          {!canNext() && step === 1 && (
-            <p style={{color: "var(--danger)", fontSize: 13, marginBottom: 8}}>
-              Please fill in all required fields before continuing.
-            </p>
+          {showMissing && !canNext() && (
+            <div style={{
+              background: "#f59e0b15", border: "1px solid #f59e0b40",
+              borderRadius: 8, padding: "10px 14px", marginBottom: 12,
+              color: "#f59e0b", fontSize: 13,
+            }}>
+              Some paths still need selections. Look for the highlighted fields below.
+            </div>
           )}
 
           {sorted.map((inst, idx) => {
             const pt = inst.path_type;
             const color = instanceColor(inst, instances);
             const heading = instanceLabel(inst, instances);
+            const complete = isInstanceComplete(inst);
+            const missing = getMissingFields(inst);
+            const isCollapsed = collapsed[inst.instance_id] && complete;
+            const missingFieldNames = new Set(missing.map(m => m.field));
 
             return (
-              <div key={inst.instance_id} className="path-section" style={{borderLeftColor: color}}>
-                <h3 style={{color}}>{heading}</h3>
+              <div key={inst.instance_id} id={`path-${inst.instance_id}`}
+                className="path-section" style={{borderLeftColor: color}}>
+                <div className="path-section-header" onClick={() => toggleCollapse(inst.instance_id)}>
+                  <h3 style={{color, margin: 0, display: "flex", alignItems: "center"}}>
+                    {heading}
+                    {complete
+                      ? <span className="path-status complete">Ready</span>
+                      : <span className="path-status incomplete">{missing.length} field{missing.length > 1 ? "s" : ""} needed</span>
+                    }
+                  </h3>
+                  <div className="path-section-toggle">
+                    {complete && <span style={{color: "#10b981", fontSize: 12}}>
+                      {instanceSummary(inst)}
+                    </span>}
+                    <span className={"chevron" + (isCollapsed ? " collapsed" : "")}>&#9660;</span>
+                  </div>
+                </div>
+                <div className={"path-section-body" + (isCollapsed ? " collapsed" : "")}
+                  style={isCollapsed ? {maxHeight: 0} : {maxHeight: 2000}}>
 
                 {pt === "college" && (
                   <>
@@ -1039,9 +1208,9 @@
                           }}
                         />
                       ) : (
-                        <select className="form-select" value={inst.school_type}
+                        <select className={"form-select" + (showMissing && missingFieldNames.has("school_type") && !inst.school_type ? " field-missing" : "")} value={inst.school_type}
                           onChange={e => updateInstance(inst.instance_id, "school_type", e.target.value)}>
-                          <option value="" disabled>Undefined</option>
+                          <option value="" disabled>Select school type...</option>
                           <option value="public_in_state">Public (In-State)</option>
                           <option value="public_out_of_state">Public (Out-of-State)</option>
                           <option value="private">Private University</option>
@@ -1112,12 +1281,12 @@
                         onChange={e => updateInstance(inst.instance_id, "loan_term_years", Math.max(5, Math.min(30, parseInt(e.target.value) || 15)))}
                       />
                     </div>
-                    <div className="form-group">
+                    <div className={"form-group" + (showMissing && missingFieldNames.has("major") ? " field-missing" : "")}>
                       <label>Intended major</label>
                       <select className="form-select" value={inst.major}
                         onChange={e => updateInstance(inst.instance_id, "major", e.target.value)}>
-                        <option value="" disabled>Undefined</option>
-                        {["stem","business","healthcare","liberal_arts","education","undecided"].map(m =>
+                        <option value="" disabled>Select a major...</option>
+                        {["computer_science","engineering","biology","environmental_science","nursing","kinesiology","business_finance","accounting","marketing","psychology","criminal_justice","political_science","communications","english","social_work","education","art_design","undecided"].map(m =>
                           <option key={m} value={m}>{LABEL_MAP[m]}</option>
                         )}
                       </select>
@@ -1200,9 +1369,9 @@
                           }}
                         />
                       ) : (
-                        <select className="form-select" value={inst.transfer_university_type}
+                        <select className={"form-select" + (showMissing && missingFieldNames.has("transfer_university_type") && !inst.transfer_university_type ? " field-missing" : "")} value={inst.transfer_university_type}
                           onChange={e => updateInstance(inst.instance_id, "transfer_university_type", e.target.value)}>
-                          <option value="" disabled>Undefined</option>
+                          <option value="" disabled>Select school type...</option>
                           <option value="public_in_state">Public (In-State)</option>
                           <option value="public_out_of_state">Public (Out-of-State)</option>
                           <option value="private">Private University</option>
@@ -1271,12 +1440,12 @@
                         onChange={e => updateInstance(inst.instance_id, "loan_term_years", Math.max(5, Math.min(30, parseInt(e.target.value) || 15)))}
                       />
                     </div>
-                    <div className="form-group">
+                    <div className={"form-group" + (showMissing && missingFieldNames.has("major") ? " field-missing" : "")}>
                       <label>Intended major</label>
                       <select className="form-select" value={inst.major}
                         onChange={e => updateInstance(inst.instance_id, "major", e.target.value)}>
-                        <option value="" disabled>Undefined</option>
-                        {["stem","business","healthcare","liberal_arts","education","undecided"].map(m =>
+                        <option value="" disabled>Select a major...</option>
+                        {["computer_science","engineering","biology","environmental_science","nursing","kinesiology","business_finance","accounting","marketing","psychology","criminal_justice","political_science","communications","english","social_work","education","art_design","undecided"].map(m =>
                           <option key={m} value={m}>{LABEL_MAP[m]}</option>
                         )}
                       </select>
@@ -1285,12 +1454,12 @@
                 )}
 
                 {pt === "trade" && (
-                  <div className="form-group">
+                  <div className={"form-group" + (showMissing && missingFieldNames.has("trade_type") ? " field-missing" : "")}>
                     <label>Which trade?</label>
                     <select className="form-select" value={inst.trade_type}
                       onChange={e => updateInstance(inst.instance_id, "trade_type", e.target.value)}>
-                      <option value="" disabled>Undefined</option>
-                      {["electrician","plumber","hvac","carpenter"].map(t =>
+                      <option value="" disabled>Select a trade...</option>
+                      {["electrician","plumber","hvac","carpenter","welder","automotive_tech","diesel_mechanic","cnc_machinist","lineworker","ironworker","elevator_mechanic","heavy_equipment_op"].map(t =>
                         <option key={t} value={t}>{LABEL_MAP[t]}</option>
                       )}
                     </select>
@@ -1298,12 +1467,12 @@
                 )}
 
                 {pt === "workforce" && (
-                  <div className="form-group">
+                  <div className={"form-group" + (showMissing && missingFieldNames.has("industry") ? " field-missing" : "")}>
                     <label>Industry</label>
                     <select className="form-select" value={inst.industry}
                       onChange={e => updateInstance(inst.instance_id, "industry", e.target.value)}>
-                      <option value="" disabled>Undefined</option>
-                      {["retail","logistics","food_service","admin","manufacturing"].map(i =>
+                      <option value="" disabled>Select an industry...</option>
+                      {["retail","logistics","food_service","admin","manufacturing","security","landscaping","customer_service","delivery_driver","janitorial","home_health_aide","childcare"].map(i =>
                         <option key={i} value={i}>{LABEL_MAP[i]}</option>
                       )}
                     </select>
@@ -1322,12 +1491,12 @@
                       </div>
                     </div>
                     {inst.use_gi_bill && (
-                      <div className="form-group">
+                      <div className={"form-group" + (showMissing && missingFieldNames.has("gi_bill_major") ? " field-missing" : "")}>
                         <label>Post-service major</label>
                         <select className="form-select" value={inst.gi_bill_major}
                           onChange={e => updateInstance(inst.instance_id, "gi_bill_major", e.target.value)}>
-                          <option value="" disabled>Undefined</option>
-                          {["stem","business","healthcare","liberal_arts","education","undecided"].map(m =>
+                          <option value="" disabled>Select a major...</option>
+                          {["computer_science","engineering","biology","environmental_science","nursing","kinesiology","business_finance","accounting","marketing","psychology","criminal_justice","political_science","communications","english","social_work","education","art_design","undecided"].map(m =>
                             <option key={m} value={m}>{LABEL_MAP[m]}</option>
                           )}
                         </select>
@@ -1335,6 +1504,7 @@
                     )}
                   </>
                 )}
+                </div>{/* end path-section-body */}
               </div>
             );
           })}
