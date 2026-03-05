@@ -188,6 +188,16 @@ def _apply_financial_overrides(scenario, body: dict) -> None:
     if tax_rate is not None:
         scenario.career.effective_tax_rate = float(tax_rate)
 
+    start_age = body.get("start_age")
+    if start_age is not None:
+        sa = int(start_age)
+        if not (15 <= sa <= 40):
+            pass  # silently ignore out-of-range; keep default
+        else:
+            offset = sa - scenario.start_age
+            scenario.start_age = sa
+            scenario.career.income_start_age += offset
+
 
 def _handle_multi_instance(body: dict, region: Region, projection_years: int) -> dict:
     """Handle the multi-instance request format.

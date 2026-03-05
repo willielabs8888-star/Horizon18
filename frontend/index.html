@@ -1643,13 +1643,14 @@
       const [savingsRate, setSavingsRate] = useState(0.10);
       const [investReturn, setInvestReturn] = useState(0.07);
       const [taxRate, setTaxRate] = useState(REGION_TAX_DEFAULTS[quiz.region] || 0.22);
+      const [startAge, setStartAge] = useState(18);
 
       // Build color and label maps from quiz instances
       const instances = quiz.path_instances || [];
       const colorMap = buildColorMap(instances);
       const labelMap = buildLabelMap(instances, results);
 
-      const fetchData = useCallback((years, sr, ir, tr) => {
+      const fetchData = useCallback((years, sr, ir, tr, sa) => {
         setLoading(true);
         setError(null);
         const body = {
@@ -1658,6 +1659,7 @@
           savings_rate: sr,
           investment_return_rate: ir,
           tax_rate: tr,
+          start_age: sa,
         };
 
         fetch("/api/simulate", {
@@ -1674,19 +1676,19 @@
           .catch(e => { setError(e.message); setLoading(false); });
       }, [quiz]);
 
-      useEffect(() => { fetchData(projYears, savingsRate, investReturn, taxRate); }, []);
+      useEffect(() => { fetchData(projYears, savingsRate, investReturn, taxRate, startAge); }, []);
 
       const handleSlider = (e) => {
         const y = parseInt(e.target.value);
         setProjYears(y);
         if (sliderTimeout.current) clearTimeout(sliderTimeout.current);
-        sliderTimeout.current = setTimeout(() => fetchData(y, savingsRate, investReturn, taxRate), 200);
+        sliderTimeout.current = setTimeout(() => fetchData(y, savingsRate, investReturn, taxRate, startAge), 200);
       };
 
-      const handleAssumptionChange = (setter, value, sr, ir, tr) => {
+      const handleAssumptionChange = (setter, value, sr, ir, tr, sa) => {
         setter(value);
         if (assumptionTimeout.current) clearTimeout(assumptionTimeout.current);
-        assumptionTimeout.current = setTimeout(() => fetchData(projYears, sr, ir, tr), 300);
+        assumptionTimeout.current = setTimeout(() => fetchData(projYears, sr, ir, tr, sa), 300);
       };
 
       if (loading && !results) {
@@ -1709,7 +1711,7 @@
 
       if (!results) return null;
 
-      const endAge = 18 + projYears - 1;
+      const endAge = startAge + projYears - 1;
       const tab = CHART_TABS.find(t => t.key === activeTab);
 
       // Filter out zero-debt instances for the debt chart
@@ -1734,7 +1736,7 @@
           <div className="status-bar">
             <span className="badge active">{results.length} Path{results.length>1?"s":""} Compared</span>
             <span className="badge active">{LABEL_MAP[quiz.metro_area] || LABEL_MAP[quiz.region] || "National Average"}</span>
-            <span className="badge active">{projYears}-Year Projection (ages 18–{endAge})</span>
+            <span className="badge active">{projYears}-Year Projection (ages {startAge}–{endAge})</span>
             <span className="badge" style={{cursor:"pointer", borderColor:"var(--danger)", color:"var(--danger)"}} onClick={onReset}>
               Start New Projection
             </span>
@@ -1770,7 +1772,7 @@
                     <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{Math.round(savingsRate * 100)}%</span>
                   </div>
                   <input type="range" min={0} max={100} step={1} value={Math.round(savingsRate * 100)}
-                    onChange={e => { const v = parseInt(e.target.value) / 100; handleAssumptionChange(setSavingsRate, v, v, investReturn, taxRate); }}
+                    onChange={e => { const v = parseInt(e.target.value) / 100; handleAssumptionChange(setSavingsRate, v, v, investReturn, taxRate, startAge); }}
                     style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
                   <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
                     Percent of after-tax income saved annually
@@ -1783,10 +1785,23 @@
                     <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{(investReturn * 100).toFixed(1)}%</span>
                   </div>
                   <input type="range" min={0} max={200} step={5} value={Math.round(investReturn * 1000)}
-                    onChange={e => { const v = parseInt(e.target.value) / 1000; handleAssumptionChange(setInvestReturn, v, savingsRate, v, taxRate); }}
+                    onChange={e => { const v = parseInt(e.target.value) / 1000; handleAssumptionChange(setInvestReturn, v, savingsRate, v, taxRate, startAge); }}
                     style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
                   <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
                     After-inflation stock market returns based on historical averages
+                  </p>
+                </div>
+
+                <div style={{marginBottom: 20}}>
+                  <div style={{display: "flex", justifyContent: "space-between", marginBottom: 6}}>
+                    <label style={{fontSize: 13}}>Starting Age</label>
+                    <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{startAge}</span>
+                  </div>
+                  <input type="range" min={15} max={40} step={1} value={startAge}
+                    onChange={e => { const v = parseInt(e.target.value); handleAssumptionChange(setStartAge, v, savingsRate, investReturn, taxRate, v); }}
+                    style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
+                  <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
+                    Age when you start your post-graduation path (default: 18)
                   </p>
                 </div>
 
@@ -1796,7 +1811,7 @@
                     <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{Math.round(taxRate * 100)}%</span>
                   </div>
                   <input type="range" min={10} max={40} step={1} value={Math.round(taxRate * 100)}
-                    onChange={e => { const v = parseInt(e.target.value) / 100; handleAssumptionChange(setTaxRate, v, savingsRate, investReturn, v); }}
+                    onChange={e => { const v = parseInt(e.target.value) / 100; handleAssumptionChange(setTaxRate, v, savingsRate, investReturn, v, startAge); }}
                     style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
                   <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
                     Blended federal + state + payroll tax burden. {LABEL_MAP[quiz.metro_area] || LABEL_MAP[quiz.region]} region average: {Math.round((REGION_TAX_DEFAULTS[quiz.region] || 0.22) * 100)}%.

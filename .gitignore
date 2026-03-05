@@ -1,0 +1,11 @@
+# Runtime data
+analytics.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Marketing / docs (keep local, not in repo)
+Horizon18_Counselor_OnePager.pdf
+Marketing_Procedures.md
+Horizon18_Deployment_Guide.md
