@@ -101,6 +101,7 @@ def _clamp_loan_term(val, default=15) -> int:
 def _build_trade_answers(t: dict) -> TradeAnswers:
     return TradeAnswers(
         trade_type=TradeType(t.get("trade_type", "electrician")),
+        loan_term_years=int(t.get("loan_term_years", 5)),
     )
 
 def _build_workforce_answers(w: dict) -> WorkforceAnswers:

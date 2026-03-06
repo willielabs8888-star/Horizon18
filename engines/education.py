@@ -44,10 +44,10 @@ def build_education_profile(
         return _build_trade(trade or TradeAnswers(), family_savings)
 
     elif path_type == PathType.WORKFORCE:
-        return _build_workforce()
+        return _build_workforce(family_savings)
 
     elif path_type == PathType.MILITARY:
-        return _build_military(military or MilitaryAnswers())
+        return _build_military(military or MilitaryAnswers(), family_savings)
 
     else:
         raise ValueError(f"Unknown path type: {path_type}")
@@ -200,23 +200,25 @@ def _build_trade(
         total_loan_amount=loan_amount,
         excess_family_savings=excess_savings,
         loan_interest_rate=LOAN_INTEREST_RATE,
-        loan_term_years=5,  # Shorter term for smaller loans
+        loan_term_years=answers.loan_term_years,  # Configurable (default 5 years for trades)
         grace_period_months=0,  # No grace — they're working
     )
 
 
-def _build_workforce() -> EducationProfile:
+def _build_workforce(family_savings: float = 0.0) -> EducationProfile:
+    # No education costs — all family savings go directly to starting investment
     return EducationProfile(
         path_type=PathType.WORKFORCE,
         label="Direct Workforce",
         years_in_school=0,
         earns_during_school=True,
         total_loan_amount=0,
+        excess_family_savings=family_savings,
         grace_period_months=0,
     )
 
 
-def _build_military(answers: MilitaryAnswers) -> EducationProfile:
+def _build_military(answers: MilitaryAnswers, family_savings: float = 0.0) -> EducationProfile:
     gi_bill_tuition = 0.0
     gi_bill_housing = 0.0
 
@@ -232,6 +234,7 @@ def _build_military(answers: MilitaryAnswers) -> EducationProfile:
         annual_tuition=[0.0] * answers.enlistment_years,
         annual_room_and_board=[0.0] * answers.enlistment_years,
         total_loan_amount=0,
+        excess_family_savings=family_savings,  # No education costs — all goes to investment
         loan_interest_rate=0,
         loan_term_years=0,
         grace_period_months=0,

@@ -15,7 +15,7 @@ SAVINGS_RATE: float = 0.10              # 10% of net (take-home) income, capped 
 INVESTMENT_RETURN: float = 0.07         # 7% annual return (LOCKED)
 EFFECTIVE_TAX_RATE: float = 0.18        # Simplified effective rate (engine default)
 LOAN_INTEREST_RATE: float = 0.065       # Federal direct loan rate
-LOAN_TERM_YEARS: int = 15              # Default repayment plan (editable by user, 5-30 years)
+LOAN_TERM_YEARS: int = 10              # Default repayment plan (editable by user, 5-30 years)
 GRACE_PERIOD_MONTHS: int = 6           # Post-graduation grace period
 
 # Region-based effective tax rate defaults (blended federal + state + payroll)

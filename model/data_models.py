@@ -126,7 +126,7 @@ class CollegeAnswers:
     ipeds_id: str | None = None          # Specific school from database (optional)
     tuition_override: float | None = None  # User-adjusted annual tuition + fees
     room_board_override: float | None = None  # User-adjusted annual room & board
-    loan_term_years: int = 15             # Repayment period in years (editable, 5-30)
+    loan_term_years: int = 10             # Repayment period in years (editable, 5-30)
     major: Major = Major.UNDECIDED
     part_time_work: bool = True
     part_time_income: float = 8_000
@@ -140,7 +140,7 @@ class CommunityCollegeAnswers:
     tuition_override_cc: float | None = None  # User-adjusted CC tuition
     tuition_override_transfer: float | None = None  # User-adjusted transfer tuition
     room_board_override: float | None = None  # User-adjusted room & board (transfer yrs)
-    loan_term_years: int = 15             # Repayment period in years (editable, 5-30)
+    loan_term_years: int = 10             # Repayment period in years (editable, 5-30)
     major: Major = Major.UNDECIDED
     part_time_work: bool = True
     part_time_income: float = 10_000
@@ -149,6 +149,7 @@ class CommunityCollegeAnswers:
 @dataclass
 class TradeAnswers:
     trade_type: TradeType = TradeType.ELECTRICIAN
+    loan_term_years: int = 5              # Shorter default for smaller trade school loans
 
 
 @dataclass

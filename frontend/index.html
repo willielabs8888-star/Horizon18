@@ -471,9 +471,9 @@
 
     // Default configs for new instances — blank-slate (user must choose)
     const DEFAULT_CONFIGS = {
-      college: { school_type: "", major: "", use_search: true, loan_term_years: 15 },
-      cc_transfer: { transfer_university_type: "", major: "", use_search: true, use_transfer_search: true, loan_term_years: 15 },
-      trade: { trade_type: "" },
+      college: { school_type: "", major: "", use_search: true, loan_term_years: 10, part_time_work: true, part_time_income: 8000 },
+      cc_transfer: { transfer_university_type: "", major: "", use_search: true, use_transfer_search: true, loan_term_years: 10, part_time_work: true, part_time_income: 10000 },
+      trade: { trade_type: "", loan_term_years: 5 },
       workforce: { industry: "" },
       military: { enlistment_years: 4, use_gi_bill: true, gi_bill_major: "" },
     };
@@ -515,13 +515,28 @@
       return (val < 0 ? "-$" : "$") + Math.abs(val).toLocaleString("en-US", {maximumFractionDigits: 0});
     }
 
-    /** Get a numbered label for an instance (e.g., "4-Year College #1"). */
+    /** Format an enum value for display (e.g. "computer_science" → "Computer Science") */
+    function fmtEnum(val) {
+      if (!val) return "";
+      return LABEL_MAP[val] || val.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    }
+
+    /** Get a descriptive label for an instance including specific field. */
     function instanceLabel(inst, allInstances) {
       const sameType = (allInstances || []).filter(i => i.path_type === inst.path_type);
       const idx = sameType.findIndex(i => i.instance_id === inst.instance_id);
-      const num = idx >= 0 ? idx + 1 : 1;
+      const num = sameType.length > 1 ? ` #${(idx >= 0 ? idx + 1 : 1)}` : "";
       const base = PATH_LABELS[inst.path_type] || inst.path_type;
-      return sameType.length > 1 ? `${base} #${num}` : base;
+
+      // Include specific field (major, trade, industry) for clarity
+      let specific = "";
+      if (inst.path_type === "college" && inst.major) specific = ` – ${fmtEnum(inst.major)}`;
+      else if (inst.path_type === "cc_transfer" && inst.major) specific = ` – ${fmtEnum(inst.major)}`;
+      else if (inst.path_type === "trade" && inst.trade_type) specific = ` – ${fmtEnum(inst.trade_type)}`;
+      else if (inst.path_type === "workforce" && inst.industry) specific = ` – ${fmtEnum(inst.industry)}`;
+      else if (inst.path_type === "military") specific = inst.use_gi_bill ? ` – GI Bill (${fmtEnum(inst.gi_bill_major) || "Undecided"})` : " – Civilian";
+
+      return `${base}${specific}${num}`;
     }
 
     /** Get list of missing required fields for an instance. Returns array of {field, label} */
@@ -556,13 +571,13 @@
       const pt = inst.path_type;
       if (pt === "college") {
         const school = inst._selected_school ? inst._selected_school.name : LABEL_MAP[inst.school_type];
-        const term = inst.loan_term_years && inst.loan_term_years !== 15 ? `${inst.loan_term_years}yr repayment` : null;
+        const term = inst.loan_term_years && inst.loan_term_years !== 10 ? `${inst.loan_term_years}yr repayment` : null;
         return [school, LABEL_MAP[inst.major], term].filter(Boolean).join(", ") || "Not configured";
       }
       if (pt === "cc_transfer") {
         const transfer = inst._selected_transfer ? inst._selected_transfer.name : LABEL_MAP[inst.transfer_university_type];
         const cc = inst._selected_cc ? inst._selected_cc.name : "Community College";
-        const term = inst.loan_term_years && inst.loan_term_years !== 15 ? `${inst.loan_term_years}yr repayment` : null;
+        const term = inst.loan_term_years && inst.loan_term_years !== 10 ? `${inst.loan_term_years}yr repayment` : null;
         return [cc + " → " + transfer, LABEL_MAP[inst.major], term].filter(Boolean).join(", ") || "Not configured";
       }
       if (pt === "trade") return LABEL_MAP[inst.trade_type] || "Not configured";
@@ -592,19 +607,8 @@
     function buildLabelMap(instances, results) {
       const map = {};
       for (const inst of instances) {
-        // Use the API-generated scenario name if available, otherwise build one
-        const result = results && results.find(r => r.scenario.instance_id === inst.instance_id);
-        if (result) {
-          map[inst.instance_id] = result.scenario.name;
-        } else {
-          const sameType = instances.filter(i => i.path_type === inst.path_type);
-          const prefix = PATH_LABELS[inst.path_type];
-          if (sameType.length > 1) {
-            map[inst.instance_id] = `${prefix}: ${instanceLabel(inst)}`;
-          } else {
-            map[inst.instance_id] = prefix;
-          }
-        }
+        // Always use our detailed instanceLabel for consistency across charts, legends, and insights
+        map[inst.instance_id] = instanceLabel(inst, instances);
       }
       return map;
     }
@@ -846,6 +850,8 @@
           row[id+"_debt"] = Math.round(s.debt_remaining);
           row[id+"_invest"] = Math.round(s.investment_balance);
           row[id+"_savings"] = Math.round(s.savings_rate_actual * 100);
+          row[id+"_loan_pay"] = Math.round(s.loan_payment);
+          row[id+"_annual_save"] = Math.round(s.annual_savings);
           row[id+"_cum_tax"] = Math.round(s.cumulative_taxes);
         }
         rows.push(row);
@@ -857,9 +863,22 @@
     // GENERIC CHART COMPONENT (instance-aware)
     // ============================================================
 
-    function SimChart({ data, results, suffix, dataKeySuffix, yDomain, colorMap, labelMap }) {
+    function SimChart({ data, results, suffix, dataKeySuffix, yDomain, colorMap, labelMap, savingsRate }) {
       const ids = results.map(r => r.scenario.instance_id || r.scenario.path_type);
       const isMoney = !suffix;
+      const [hoverData, setHoverData] = useState(null);
+
+      const handleMouseMove = (state) => {
+        if (state && state.activePayload && state.activePayload.length) {
+          const label = state.activeLabel;
+          const values = state.activePayload.map(e => ({
+            id: e.dataKey.replace("_"+dataKeySuffix, ""),
+            color: e.color,
+            value: e.value,
+          })).sort((a,b) => (b.value||0) - (a.value||0));
+          setHoverData({ age: label, values });
+        }
+      };
 
       return (
         <div style={{animation: "fadeIn 0.3s ease"}}>
@@ -872,34 +891,40 @@
             ))}
           </div>
 
+          {/* Static hover panel — shows values as you move cursor along chart */}
+          <div style={{minHeight: 48, padding: "8px 16px", marginBottom: 4, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, transition: "opacity 0.15s", opacity: hoverData ? 1 : 0.4}}>
+            {hoverData ? (
+              <div>
+                <div style={{fontSize: 12, fontWeight: 600, color: "var(--text-dim)", marginBottom: 4}}>Age {hoverData.age}</div>
+                <div style={{display: "flex", gap: 20, flexWrap: "wrap"}}>
+                  {hoverData.values.map(v => (
+                    <div key={v.id} style={{display: "flex", alignItems: "center", gap: 6}}>
+                      <div style={{width: 8, height: 8, borderRadius: "50%", background: v.color, flexShrink: 0}} />
+                      <span style={{fontSize: 12, color: "var(--text-dim)"}}>{labelMap[v.id] || v.id}</span>
+                      <span style={{fontSize: 13, fontWeight: 600, color: v.color}}>
+                        {isMoney ? fmtFull(v.value) : (v.value != null ? v.value + (suffix||"") : "—")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{fontSize: 12, color: "var(--text-dim)"}}>Hover over the chart to see values at each age</div>
+            )}
+          </div>
+
           <ResponsiveContainer width="100%" height={420}>
-            <LineChart data={data} margin={{top:10, right:30, left:20, bottom:5}}>
+            <LineChart data={data} margin={{top:10, right:30, left:20, bottom:5}}
+              onMouseMove={handleMouseMove} onMouseLeave={() => setHoverData(null)}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2a2e3f" />
               <XAxis dataKey="age" stroke="#6b7280" tick={{fill:"#9ca3af", fontSize:12}}
                 label={{value:"Age", position:"insideBottom", offset:-2, fill:"#9ca3af"}} />
               <YAxis stroke="#6b7280" tick={{fill:"#9ca3af", fontSize:12}}
                 tickFormatter={isMoney ? fmt : (v => v + (suffix||""))}
                 domain={yDomain || undefined} />
-              <Tooltip content={({active, payload, label}) => {
-                if (!active || !payload || !payload.length) return null;
-                return (
-                  <div className="custom-tooltip">
-                    <div className="age-label">Age {label}</div>
-                    {payload.sort((a,b) => (b.value||0)-(a.value||0)).map(e => {
-                      const id = e.dataKey.replace("_"+dataKeySuffix, "");
-                      return (
-                        <div className="tooltip-row" key={e.dataKey}>
-                          <span style={{color:e.color}}>{labelMap[id] || id}</span>
-                          <span style={{color:e.color, fontWeight:600}}>
-                            {isMoney ? fmtFull(e.value) : e.value + (suffix||"")}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              }} />
+              <Tooltip content={() => null} cursor={{stroke: "var(--text-dim)", strokeWidth: 1, strokeDasharray: "4 4"}} />
               {dataKeySuffix === "nw" && <ReferenceLine y={0} stroke="#6b7280" strokeDasharray="4 4" />}
+              {dataKeySuffix === "savings" && savingsRate !== undefined && <ReferenceLine y={Math.round(savingsRate * 100)} stroke="var(--accent)" strokeDasharray="5 5" label={{value: "Target", position: "right", fill: "var(--text-dim)", fontSize: 11}} />}
               {ids.map(id => (
                 <Line key={id} type="monotone" dataKey={id+"_"+dataKeySuffix}
                   stroke={colorMap[id] || "#888"} strokeWidth={dataKeySuffix === "nw" ? 2.5 : 2}
@@ -1275,12 +1300,51 @@
                     )}
                     <div className="form-group">
                       <label>Loan repayment term (years)</label>
-                      <p className="field-hint">Shorter terms mean higher monthly payments but less total interest. Standard federal plan is 10 years; extended plans go up to 25-30.</p>
-                      <input type="number" className="form-select" min="5" max="30" step="1"
-                        value={inst.loan_term_years || 15}
-                        onChange={e => updateInstance(inst.instance_id, "loan_term_years", Math.max(5, Math.min(30, parseInt(e.target.value) || 15)))}
-                      />
+                      <p className="field-hint">Longer terms reduce monthly payments but increase total interest paid.</p>
+                      <div style={{display: "flex", alignItems: "center", gap: 12}}>
+                        <button className="btn btn-secondary" style={{padding: "8px 12px", fontSize: 14, minWidth: 40}}
+                          onClick={() => updateInstance(inst.instance_id, "loan_term_years", Math.max(5, (inst.loan_term_years || 10) - 1))}>
+                          −
+                        </button>
+                        <input type="number" className="form-select" min="5" max="30" step="1"
+                          value={inst.loan_term_years || 10}
+                          onChange={e => updateInstance(inst.instance_id, "loan_term_years", Math.max(5, Math.min(30, parseInt(e.target.value) || 10)))}
+                          style={{flex: 1, textAlign: "center"}}
+                        />
+                        <button className="btn btn-secondary" style={{padding: "8px 12px", fontSize: 14, minWidth: 40}}
+                          onClick={() => updateInstance(inst.instance_id, "loan_term_years", Math.min(30, (inst.loan_term_years || 10) + 1))}>
+                          +
+                        </button>
+                      </div>
                     </div>
+                    <div className="form-group">
+                      <label>Will you work part-time during school?</label>
+                      <div style={{display: "flex", gap: 12, marginBottom: 12}}>
+                        <button className={"btn" + (inst.part_time_work ? " btn-primary" : " btn-secondary")}
+                          onClick={() => updateInstance(inst.instance_id, "part_time_work", true)}
+                          style={{flex: 1}}>
+                          Yes
+                        </button>
+                        <button className={"btn" + (!inst.part_time_work ? " btn-primary" : " btn-secondary")}
+                          onClick={() => updateInstance(inst.instance_id, "part_time_work", false)}
+                          style={{flex: 1}}>
+                          No
+                        </button>
+                      </div>
+                    </div>
+                    {inst.part_time_work && (
+                      <div className="form-group">
+                        <label>Expected annual earnings</label>
+                        <p className="field-hint">Estimated income from part-time work during the 4 school years.</p>
+                        <div style={{position:"relative"}}>
+                          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#666",fontSize:14}}>$</span>
+                          <input type="number" className="form-select" style={{paddingLeft:22}} min="0"
+                            value={inst.part_time_income || 8000}
+                            onChange={e => updateInstance(inst.instance_id, "part_time_income", Math.max(0, parseInt(e.target.value) || 8000))}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className={"form-group" + (showMissing && missingFieldNames.has("major") ? " field-missing" : "")}>
                       <label>Intended major</label>
                       <select className="form-select" value={inst.major}
@@ -1434,12 +1498,51 @@
                     </div>
                     <div className="form-group">
                       <label>Loan repayment term (years)</label>
-                      <p className="field-hint">Shorter terms mean higher monthly payments but less total interest. Standard federal plan is 10 years; extended plans go up to 25-30.</p>
-                      <input type="number" className="form-select" min="5" max="30" step="1"
-                        value={inst.loan_term_years || 15}
-                        onChange={e => updateInstance(inst.instance_id, "loan_term_years", Math.max(5, Math.min(30, parseInt(e.target.value) || 15)))}
-                      />
+                      <p className="field-hint">Longer terms reduce monthly payments but increase total interest paid.</p>
+                      <div style={{display: "flex", alignItems: "center", gap: 12}}>
+                        <button className="btn btn-secondary" style={{padding: "8px 12px", fontSize: 14, minWidth: 40}}
+                          onClick={() => updateInstance(inst.instance_id, "loan_term_years", Math.max(5, (inst.loan_term_years || 10) - 1))}>
+                          −
+                        </button>
+                        <input type="number" className="form-select" min="5" max="30" step="1"
+                          value={inst.loan_term_years || 10}
+                          onChange={e => updateInstance(inst.instance_id, "loan_term_years", Math.max(5, Math.min(30, parseInt(e.target.value) || 10)))}
+                          style={{flex: 1, textAlign: "center"}}
+                        />
+                        <button className="btn btn-secondary" style={{padding: "8px 12px", fontSize: 14, minWidth: 40}}
+                          onClick={() => updateInstance(inst.instance_id, "loan_term_years", Math.min(30, (inst.loan_term_years || 10) + 1))}>
+                          +
+                        </button>
+                      </div>
                     </div>
+                    <div className="form-group">
+                      <label>Will you work part-time during school?</label>
+                      <div style={{display: "flex", gap: 12, marginBottom: 12}}>
+                        <button className={"btn" + (inst.part_time_work ? " btn-primary" : " btn-secondary")}
+                          onClick={() => updateInstance(inst.instance_id, "part_time_work", true)}
+                          style={{flex: 1}}>
+                          Yes
+                        </button>
+                        <button className={"btn" + (!inst.part_time_work ? " btn-primary" : " btn-secondary")}
+                          onClick={() => updateInstance(inst.instance_id, "part_time_work", false)}
+                          style={{flex: 1}}>
+                          No
+                        </button>
+                      </div>
+                    </div>
+                    {inst.part_time_work && (
+                      <div className="form-group">
+                        <label>Expected annual earnings</label>
+                        <p className="field-hint">Estimated income from part-time work during the 4 school years.</p>
+                        <div style={{position:"relative"}}>
+                          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#666",fontSize:14}}>$</span>
+                          <input type="number" className="form-select" style={{paddingLeft:22}} min="0"
+                            value={inst.part_time_income || 10000}
+                            onChange={e => updateInstance(inst.instance_id, "part_time_income", Math.max(0, parseInt(e.target.value) || 10000))}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className={"form-group" + (showMissing && missingFieldNames.has("major") ? " field-missing" : "")}>
                       <label>Intended major</label>
                       <select className="form-select" value={inst.major}
@@ -1450,20 +1553,44 @@
                         )}
                       </select>
                     </div>
+                    <p style={{fontSize: 12, color: "var(--text-dim)", marginTop: 4, fontStyle: "italic"}}>
+                      Note: CC transfer graduates typically earn ~2% less than direct 4-year grads in the same major, based on NACE employment data.
+                    </p>
                   </>
                 )}
 
                 {pt === "trade" && (
-                  <div className={"form-group" + (showMissing && missingFieldNames.has("trade_type") ? " field-missing" : "")}>
-                    <label>Which trade?</label>
-                    <select className="form-select" value={inst.trade_type}
-                      onChange={e => updateInstance(inst.instance_id, "trade_type", e.target.value)}>
-                      <option value="" disabled>Select a trade...</option>
-                      {["electrician","plumber","hvac","carpenter","welder","automotive_tech","diesel_mechanic","cnc_machinist","lineworker","ironworker","elevator_mechanic","heavy_equipment_op"].map(t =>
-                        <option key={t} value={t}>{LABEL_MAP[t]}</option>
-                      )}
-                    </select>
-                  </div>
+                  <>
+                    <div className={"form-group" + (showMissing && missingFieldNames.has("trade_type") ? " field-missing" : "")}>
+                      <label>Which trade?</label>
+                      <select className="form-select" value={inst.trade_type}
+                        onChange={e => updateInstance(inst.instance_id, "trade_type", e.target.value)}>
+                        <option value="" disabled>Select a trade...</option>
+                        {["electrician","plumber","hvac","carpenter","welder","automotive_tech","diesel_mechanic","cnc_machinist","lineworker","ironworker","elevator_mechanic","heavy_equipment_op"].map(t =>
+                          <option key={t} value={t}>{LABEL_MAP[t]}</option>
+                        )}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Loan repayment term (years)</label>
+                      <p className="field-hint">Trade school loans are typically shorter than college loans. Range: 3-15 years.</p>
+                      <div style={{display: "flex", alignItems: "center", gap: 12}}>
+                        <button className="btn btn-secondary" style={{padding: "8px 12px", fontSize: 14, minWidth: 40}}
+                          onClick={() => updateInstance(inst.instance_id, "loan_term_years", Math.max(3, (inst.loan_term_years || 5) - 1))}>
+                          −
+                        </button>
+                        <input type="number" className="form-select" min="3" max="15" step="1"
+                          value={inst.loan_term_years || 5}
+                          onChange={e => updateInstance(inst.instance_id, "loan_term_years", Math.max(3, Math.min(15, parseInt(e.target.value) || 5)))}
+                          style={{flex: 1, textAlign: "center"}}
+                        />
+                        <button className="btn btn-secondary" style={{padding: "8px 12px", fontSize: 14, minWidth: 40}}
+                          onClick={() => updateInstance(inst.instance_id, "loan_term_years", Math.min(15, (inst.loan_term_years || 5) + 1))}>
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {pt === "workforce" && (
@@ -1540,11 +1667,17 @@
 
           <div className="form-group">
             <label>Will you live at home after graduation?</label>
-            <div className="toggle-row" onClick={() => updateShared("living_at_home", !shared.living_at_home)}>
-              <div className={"toggle-indicator" + (shared.living_at_home ? " on" : "")}>
-                {shared.living_at_home ? "✓" : ""}
-              </div>
-              <span>{shared.living_at_home ? "Yes, living at home to save money" : "No, living independently"}</span>
+            <div style={{display: "flex", gap: 12, marginBottom: 12}}>
+              <button className={"btn" + (shared.living_at_home ? " btn-primary" : " btn-secondary")}
+                onClick={() => updateShared("living_at_home", true)}
+                style={{flex: 1}}>
+                Yes
+              </button>
+              <button className={"btn" + (!shared.living_at_home ? " btn-primary" : " btn-secondary")}
+                onClick={() => updateShared("living_at_home", false)}
+                style={{flex: 1}}>
+                No
+              </button>
             </div>
           </div>
 
@@ -1554,7 +1687,7 @@
               <input type="number" className="form-select" min="1" max="15" step="1"
                 value={shared.years_at_home}
                 onChange={e => updateShared("years_at_home", Math.max(1, Math.min(15, parseInt(e.target.value) || 1)))} />
-              <p className="field-hint">Living at home can save significantly on rent and utilities.</p>
+              <p className="field-hint">Living at home typically means living with parents or family to reduce rent and utility costs.</p>
             </div>
           )}
         </div>
@@ -1624,7 +1757,9 @@
       { key: "cum_earn", label: "Cumulative Earnings", title: "Cumulative Earnings", subtitle: "Total gross income earned through each age", suffix: null },
       { key: "debt", label: "Debt", title: "Student Debt Over Time", subtitle: "Outstanding student loan balance (paths with no debt are hidden)", suffix: null },
       { key: "invest", label: "Investments", title: "Investment Growth", subtitle: "Savings compounding at the configured annual return rate", suffix: null },
-      { key: "savings", label: "Savings Rate", title: "Savings Rate", subtitle: "Percentage of disposable income (after expenses and loan payments) saved each year", suffix: "%" },
+      { key: "savings", label: "Realized Savings Rate", title: "Realized Savings Rate", subtitle: "Percentage of income actually saved after taxes, expenses, and loan payments", suffix: "%" },
+      { key: "loan_pay", label: "Loan Payments", title: "Annual Loan Payments", subtitle: "Amount paid toward student loans each year", suffix: null },
+      { key: "annual_save", label: "Annual Savings", title: "Annual Savings Contribution", subtitle: "New savings contributed each year after all expenses", suffix: null },
       { key: "cum_tax", label: "Taxes Paid", title: "Cumulative Taxes Paid", subtitle: "Total taxes paid through each age", suffix: null },
     ];
 
@@ -1725,10 +1860,8 @@
           })()
         : results;
 
-      // Sort results by final net worth for summary
-      const sorted = [...results].sort((a, b) =>
-        b.snapshots[b.snapshots.length-1].net_worth - a.snapshots[a.snapshots.length-1].net_worth
-      );
+      // Preserve user-selected order (no sorting by net worth)
+      const sorted = results;
 
       return (
         <div>
@@ -1768,6 +1901,19 @@
               <div style={{padding: "0 20px 20px", borderTop: "1px solid var(--border)"}}>
                 <div style={{marginTop: 16, marginBottom: 20}}>
                   <div style={{display: "flex", justifyContent: "space-between", marginBottom: 6}}>
+                    <label style={{fontSize: 13}}>Starting Age</label>
+                    <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{startAge}</span>
+                  </div>
+                  <input type="range" min={15} max={40} step={1} value={startAge}
+                    onChange={e => { const v = parseInt(e.target.value); handleAssumptionChange(setStartAge, v, savingsRate, investReturn, taxRate, v); }}
+                    style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
+                  <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
+                    Age when you start your post-graduation path (default: 18)
+                  </p>
+                </div>
+
+                <div style={{marginBottom: 20}}>
+                  <div style={{display: "flex", justifyContent: "space-between", marginBottom: 6}}>
                     <label style={{fontSize: 13}}>Savings Rate</label>
                     <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{Math.round(savingsRate * 100)}%</span>
                   </div>
@@ -1788,20 +1934,7 @@
                     onChange={e => { const v = parseInt(e.target.value) / 1000; handleAssumptionChange(setInvestReturn, v, savingsRate, v, taxRate, startAge); }}
                     style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
                   <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
-                    After-inflation stock market returns based on historical averages
-                  </p>
-                </div>
-
-                <div style={{marginBottom: 20}}>
-                  <div style={{display: "flex", justifyContent: "space-between", marginBottom: 6}}>
-                    <label style={{fontSize: 13}}>Starting Age</label>
-                    <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{startAge}</span>
-                  </div>
-                  <input type="range" min={15} max={40} step={1} value={startAge}
-                    onChange={e => { const v = parseInt(e.target.value); handleAssumptionChange(setStartAge, v, savingsRate, investReturn, taxRate, v); }}
-                    style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
-                  <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
-                    Age when you start your post-graduation path (default: 18)
+                    Historical average: ~7%/year after inflation. Conservative: 6%. Aggressive: 8%.
                   </p>
                 </div>
 
@@ -1871,6 +2004,7 @@
                 yDomain={activeTab === "savings" ? [0, "auto"] : undefined}
                 colorMap={colorMap}
                 labelMap={labelMap}
+                savingsRate={savingsRate}
               />
             )}
           </div>
@@ -1931,18 +2065,106 @@
             </div>
           </div>
 
+          {/* Year-by-Year Breakdown */}
+          {(() => {
+            const [showTable, setShowTable] = useState(false);
+            const [tableTab, setTableTab] = useState(results[0]?.scenario.instance_id || "");
+            const activeResult = results.find(r => (r.scenario.instance_id || r.scenario.path_type) === tableTab);
+
+            const pathFormulas = {
+              college: "Income during school = part-time work earnings. After graduation: Starting Salary × (1 + Growth Rate)^years of experience. Grace period year = 50% of starting salary.",
+              cc_transfer: "Same as 4-year college, but starting salary is ~2% lower for CC transfers. First 2 years at community college tuition rates.",
+              trade: "Apprentice wages increase each year (40→60→75→90% of journeyman rate). After apprenticeship: Journeyman Salary × (1 + Growth Rate)^years.",
+              workforce: "Starting Wage × (1.02)^years. No education costs or debt. Income begins immediately.",
+              military: "Active duty pay during service (E1→E4 progression). GI Bill housing allowance (~$28k/yr, tax-exempt) during school. Then civilian career salary.",
+            };
+            const sharedFormulas = "Savings = max(0, (Net Income − Living Expenses − Loan Payment) × Savings Rate)\nInvestments = Previous Balance × (1 + Return Rate) + Annual Savings\nNet Worth = Investment Balance − Remaining Debt";
+
+            return (
+              <div className="card" style={{padding: 0, overflow: "hidden"}}>
+                <div onClick={() => setShowTable(!showTable)}
+                  style={{padding: "14px 20px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+                  <span style={{fontWeight: 600, fontSize: 14}}>Year-by-Year Breakdown</span>
+                  <span style={{color: "var(--text-dim)", fontSize: 12}}>{showTable ? "▲ Collapse" : "▼ Expand"}</span>
+                </div>
+                {showTable && (
+                  <div style={{borderTop: "1px solid var(--border)"}}>
+                    {/* Path tabs */}
+                    <div style={{display: "flex", gap: 0, borderBottom: "1px solid var(--border)", overflowX: "auto"}}>
+                      {results.map(r => {
+                        const id = r.scenario.instance_id || r.scenario.path_type;
+                        return (
+                          <button key={id} onClick={() => setTableTab(id)}
+                            style={{padding: "10px 16px", fontSize: 12, fontWeight: tableTab === id ? 600 : 400,
+                              background: tableTab === id ? "var(--surface)" : "transparent",
+                              borderBottom: tableTab === id ? "2px solid var(--accent)" : "2px solid transparent",
+                              color: tableTab === id ? "var(--accent)" : "var(--text-dim)",
+                              border: "none", cursor: "pointer", whiteSpace: "nowrap"}}>
+                            {labelMap[id] || id}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Data table */}
+                    {activeResult && (
+                      <div style={{overflowX: "auto", padding: "0 0 16px 0"}}>
+                        <table style={{width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 900}}>
+                          <thead>
+                            <tr style={{background: "var(--bg)", position: "sticky", top: 0}}>
+                              {["Year","Age","Gross Income","Net Income","Expenses","Loan Payment","Debt","Savings","Investments","Net Worth"].map(h => (
+                                <th key={h} style={{padding: "8px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "var(--text-dim)", fontWeight: 600, whiteSpace: "nowrap"}}>
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activeResult.snapshots.map((s, i) => (
+                              <tr key={i} style={{borderBottom: "1px solid var(--border)"}}>
+                                <td style={{padding: "6px 10px", textAlign: "right"}}>{s.year + 1}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right"}}>{s.age}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right", color: "#4ade80"}}>{fmtFull(s.gross_income)}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right"}}>{fmtFull(s.net_income)}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right", color: "#f87171"}}>{fmtFull(s.living_expenses)}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right", color: s.loan_payment > 0 ? "#fbbf24" : "var(--text-dim)"}}>{fmtFull(s.loan_payment)}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right", color: s.debt_remaining > 0 ? "#f87171" : "var(--text-dim)"}}>{fmtFull(s.debt_remaining)}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right", color: "#60a5fa"}}>{fmtFull(s.annual_savings)}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right", color: "#a78bfa"}}>{fmtFull(s.investment_balance)}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right", fontWeight: 600, color: s.net_worth >= 0 ? "#4ade80" : "#f87171"}}>{fmtFull(s.net_worth)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {/* Formula explanations */}
+                        <div style={{padding: "16px 20px", borderTop: "1px solid var(--border)", background: "var(--bg)"}}>
+                          <div style={{fontWeight: 600, fontSize: 13, marginBottom: 8}}>How these numbers are calculated</div>
+                          <p style={{fontSize: 12, color: "var(--text-dim)", marginBottom: 8, whiteSpace: "pre-line"}}>
+                            <strong>Income:</strong> {pathFormulas[activeResult.scenario.path_type] || "Based on path-specific income model."}
+                          </p>
+                          <p style={{fontSize: 12, color: "var(--text-dim)", whiteSpace: "pre-line"}}>
+                            <strong>Shared formulas:</strong>{"\n"}{sharedFormulas}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Share results */}
           <div className="card" style={{textAlign: "center", padding: "20px 24px"}}>
             <p style={{fontWeight: 600, marginBottom: 12}}>Found this useful?</p>
             <div style={{display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap"}}>
               <button className="btn btn-primary" style={{padding: "10px 20px", fontSize: 13}}
                 onClick={() => {
+                  const shareUrl = window.location.origin + "?sim=" + btoa(JSON.stringify(quiz));
                   const text = `I just compared ${results.length} career paths on Horizon18 — a free tool that shows the financial reality of college, trades, military, and more over ${projYears} years. Check it out:`;
-                  const url = "https://horizon18.app";
                   if (navigator.share) {
-                    navigator.share({ title: "Horizon18", text, url }).catch(() => {});
+                    navigator.share({ title: "Horizon18", text, url: shareUrl }).catch(() => {});
                   } else {
-                    navigator.clipboard.writeText(text + " " + url).then(() => {
+                    navigator.clipboard.writeText(text + " " + shareUrl).then(() => {
                       alert("Link copied to clipboard!");
                     });
                   }
@@ -2008,7 +2230,7 @@
               <HiwDropdown icon="🎓" title="4-Year College" badge="4 years school">
                 <p><strong>What this path looks like:</strong></p>
                 <div className="hiw-timeline">
-                  <div className="hiw-timeline-step"><strong>Years 1–4 (ages 18–21):</strong> Full-time student. You pay tuition + room & board each year. Optional part-time work.</div>
+                  <div className="hiw-timeline-step"><strong>Years 1–4 (ages 18–21):</strong> Full-time student. You pay tuition + room & board each year. Optional part-time work (default: ~$8,000/year if enabled; you can adjust in path settings).</div>
                   <div className="hiw-timeline-step"><strong>Year 5 (age 22):</strong> Grace period — 6 months after graduation before loan payments begin. You start job searching; we count half a year of salary.</div>
                   <div className="hiw-timeline-step"><strong>Year 6+ (age 23+):</strong> Full-time career. Salary grows each year based on your major. You pay off loans, save, and invest.</div>
                 </div>
@@ -2019,7 +2241,8 @@
                   Loan Amount = Total Cost − Family Savings (if any)<br/><br/>
                   Example (Public In-State, off-campus):<br/>
                   = ($11,371 × 4) + ($9,600 × 4) = $83,884<br/>
-                  With $0 savings → you borrow $83,884
+                  With $0 savings → you borrow $83,884<br/><br/>
+                  Family savings are applied to education costs first. Any excess becomes your starting investment.
                 </div>
 
                 <p><strong>Income after graduation:</strong></p>
@@ -2047,16 +2270,18 @@
                   CC tuition = $3,890/year vs. Public In-State = $11,371/year<br/>
                   2-year savings on tuition alone = ($11,371 − $3,890) × 2 = $14,962<br/><br/>
                   Total Cost = ($3,890 × 2) + ($11,371 × 2) + (Room & Board × 4)<br/>
-                  = $7,780 + $22,742 + $38,400 = $68,922
+                  = $7,780 + $22,742 + $38,400 = $68,922<br/><br/>
+                  Room & board costs can be configured separately for CC and university years.
                 </div>
 
                 <p><strong>The trade-off:</strong></p>
                 <div className="hiw-formula">
-                  Starting Salary = Same-major salary × 0.98 (2% discount)<br/><br/>
+                  Starting Salary = Same-major salary × 0.98 (2% discount)<br/>
+                  CC transfer graduates earn approximately 2% less than direct 4-year graduates in the same major.<br/><br/>
                   Example (STEM): $80,000 × 0.98 = $78,400<br/>
                   Less debt up front, slightly lower starting pay. Over 30+ years the savings usually win.
                 </div>
-                <div className="hiw-note">Source: College Board community college pricing. 2% discount: product research estimate.</div>
+                <div className="hiw-note">Source: College Board community college pricing. 2% discount: NACE employment data estimate.</div>
               </HiwDropdown>
 
               {/* ===== TRADE / APPRENTICESHIP ===== */}
@@ -2080,8 +2305,15 @@
                 <p><strong>Education cost:</strong></p>
                 <div className="hiw-formula">
                   Trade school total (one-time, not per year):<br/>
-                  Electrician: $14,640 | Plumber: $12,500<br/>
-                  HVAC: $12,500 | Carpenter: $12,550<br/><br/>
+                  Electrician: $14,640 | Plumber: $12,500 | HVAC: $12,500<br/>
+                  Carpenter: $12,550 | Welder: $12,000 | Automotive Tech: $12,500<br/>
+                  Diesel Mechanic: $13,000 | CNC Machinist: $12,750 | Lineworker: $14,500<br/>
+                  Ironworker: $13,200 | Elevator Mechanic: $15,000 | Heavy Equipment Op: $12,200<br/><br/>
+                  Journeyman Salaries (Year 5+):<br/>
+                  Electrician: $67,810 | Plumber: $62,430 | HVAC: $61,040<br/>
+                  Carpenter: $54,650 | Welder: $52,810 | Automotive Tech: $45,230<br/>
+                  Diesel Mechanic: $56,780 | CNC Machinist: $59,400 | Lineworker: $72,150<br/>
+                  Ironworker: $64,320 | Elevator Mechanic: $82,900 | Heavy Equipment Op: $58,620<br/><br/>
                   Loan term: 5 years (shorter than college loans)<br/>
                   No grace period — you're already working
                 </div>
@@ -2095,7 +2327,7 @@
                 <p><strong>What this path looks like:</strong></p>
                 <div className="hiw-timeline">
                   <div className="hiw-timeline-step"><strong>Day 1 (age 18):</strong> Start working full-time right after high school. No education costs, no loans, no delay.</div>
-                  <div className="hiw-timeline-step"><strong>Every year after:</strong> Your salary grows at 2% per year. This is slower growth than paths requiring a degree, but you have a head start.</div>
+                  <div className="hiw-timeline-step"><strong>Every year after:</strong> Your salary grows at 2% per year. This is slower growth than paths requiring a degree, but you have a head start. Default salary growth: 2% annually.</div>
                 </div>
 
                 <p><strong>Starting wages by industry:</strong></p>
@@ -2149,6 +2381,7 @@
                   Housing: $2,338/month = $28,056/year (TAX FREE)<br/>
                   Books: $1,000/year stipend<br/>
                   Duration: 36 months of benefits (9 months/academic year × 4 years)<br/><br/>
+                  Income shown during GI Bill school years (~$28,000/year) represents the GI Bill housing allowance, which is tax-exempt.<br/>
                   Student loans needed: $0
                 </div>
 
@@ -2156,7 +2389,8 @@
                 <div className="hiw-formula">
                   Base civilian wage (Admin): $35,419<br/>
                   Veteran premium (+10%): $35,419 × 1.10 = $38,961<br/>
-                  Growth rate: 3% per year
+                  Growth rate: 3% per year<br/><br/>
+                  Military pay rates based on 2025 DoD tables.
                 </div>
                 <div className="hiw-note">Source: DFAS 2025 pay tables, VA Post-9/11 GI Bill rates 2025-26, Military.com BAH calculator.</div>
               </HiwDropdown>
@@ -2205,11 +2439,8 @@
 
                 <p><strong>💵 How much you save each year:</strong></p>
                 <div className="hiw-formula">
-                  Target Savings = Net Income × Savings Rate (default 10%)<br/>
-                  Disposable = Net Income − Expenses − Loan Payment<br/>
-                  Actual Savings = whichever is smaller: Target or Disposable<br/><br/>
-                  If expenses + loan payments eat all your income,<br/>
-                  savings = $0 that year (you can't save what you don't have)
+                  Annual Savings = max(0, (Net Income − Living Expenses − Loan Payment) × Savings Rate)<br/><br/>
+                  The 'Realized Savings Rate' chart shows what percentage of income was actually saved — which may be lower than your target if expenses and loan payments are high.
                 </div>
 
                 <p><strong>📊 Net Worth (the bottom line):</strong></p>
@@ -2219,15 +2450,17 @@
                   what you've built up minus what you still owe.
                 </div>
 
-                <p><strong>🌎 Regional adjustments:</strong></p>
+                <p><strong>🌎 Metro-area-based adjustments:</strong></p>
                 <div className="hiw-formula">
-                  Salary = Base Salary × Region Multiplier<br/>
-                  Expenses = Base Expenses × Region Multiplier<br/><br/>
+                  Salary = Base Salary × Metro Area Multiplier<br/>
+                  Expenses = Base Expenses × Metro Area Multiplier<br/><br/>
                   Northeast: Salary ×1.15, Expenses ×1.25 (pays more, costs more)<br/>
                   Southeast: Salary ×0.90, Expenses ×0.87 (lower pay, lower cost)<br/>
                   Midwest:   Salary ×0.95, Expenses ×0.90<br/>
                   Southwest: Salary ×0.97, Expenses ×0.95<br/>
-                  West Coast: Salary ×1.12, Expenses ×1.15
+                  West Coast: Salary ×1.12, Expenses ×1.15<br/><br/>
+                  Living Expenses Base: Independent living ~$2,200/month. Living at home ~$800/month. Both adjusted by metro area cost-of-living multiplier.
+                </div>
                 </div>
 
                 <p><strong>🏠 Living Expenses:</strong></p>
@@ -2254,6 +2487,18 @@
       const [page, setPage] = useState("quiz");
       const [quizData, setQuizData] = useState(null);
 
+      useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const simParam = params.get("sim");
+        if (simParam) {
+          try {
+            const decoded = JSON.parse(atob(simParam));
+            setQuizData(decoded);
+            setPage("results");
+          } catch(e) { console.error("Failed to decode shared simulation:", e); }
+        }
+      }, []);
+
       const handleQuizComplete = (quiz) => {
         setQuizData(quiz);
         setPage("results");
@@ -2276,26 +2521,10 @@
           {page === "quiz" && !quizData && (
             <div style={{maxWidth: 640, margin: "0 auto 24px", textAlign: "center"}}>
               <p style={{color: "var(--text)", fontSize: 16, lineHeight: 1.6, marginBottom: 16}}>
-                College, trades, military, or straight to work — which path actually builds
-                more wealth over time? Horizon18 runs the numbers for <em>your</em> situation
-                using real salary data from the Bureau of Labor Statistics.
+                College isn't the only path. Compare your options — with real numbers.
               </p>
-              <div style={{display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 8}}>
-                <div style={{background: "var(--surface)", borderRadius: 8, padding: "10px 16px", fontSize: 13}}>
-                  <span style={{color: "var(--accent)", fontWeight: 700}}>5</span> <span style={{color: "var(--text-dim)"}}>life paths</span>
-                </div>
-                <div style={{background: "var(--surface)", borderRadius: 8, padding: "10px 16px", fontSize: 13}}>
-                  <span style={{color: "var(--accent)", fontWeight: 700}}>92</span> <span style={{color: "var(--text-dim)"}}>metro areas</span>
-                </div>
-                <div style={{background: "var(--surface)", borderRadius: 8, padding: "10px 16px", fontSize: 13}}>
-                  <span style={{color: "var(--accent)", fontWeight: 700}}>18</span> <span style={{color: "var(--text-dim)"}}>majors</span>
-                </div>
-                <div style={{background: "var(--surface)", borderRadius: 8, padding: "10px 16px", fontSize: 13}}>
-                  <span style={{color: "var(--accent)", fontWeight: 700}}>12</span> <span style={{color: "var(--text-dim)"}}>trades</span>
-                </div>
-              </div>
               <p style={{color: "var(--text-dim)", fontSize: 13}}>
-                Free. No signup. No ads. Built for high school seniors and anyone rethinking their path.
+                Free. No signup. No ads.
               </p>
             </div>
           )}
