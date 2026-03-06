@@ -1,12 +1,13 @@
 # Horizon18 — Dependencies
 #
-# The web app (backend/main.py) has ZERO external dependencies.
-# It uses only Python's built-in http.server module.
-#
-# matplotlib is only needed for CLI chart generation (cli.py).
-# The web app runs without it.
-#
-# Render requires a requirements.txt to exist. If you only deploy the
-# web app, this file can be empty — the server will start fine.
+# Web app (Flask backend)
+flask>=3.0
+flask-cors>=4.0
+psycopg2-binary>=2.9
+PyJWT>=2.8
+bcrypt>=4.1
+requests>=2.31
+gunicorn>=21.2
 
+# CLI chart generation (optional, not needed for web app)
 matplotlib>=3.7

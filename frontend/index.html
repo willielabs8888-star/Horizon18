@@ -414,11 +414,11 @@
 
     // Base colors per path type
     const PATH_BASE_COLORS = {
-      college: ["#6366f1", "#a5b4fc", "#c7d2fe"],
-      cc_transfer: ["#06b6d4", "#67e8f9", "#a5f3fc"],
-      trade: ["#f59e0b", "#fbbf24", "#fcd34d"],
-      workforce: ["#ef4444", "#f87171", "#fca5a5"],
-      military: ["#22c55e", "#4ade80", "#86efac"],
+      college: ["#6366f1", "#a5b4fc", "#c7d2fe", "#818cf8", "#4f46e5"],
+      cc_transfer: ["#06b6d4", "#67e8f9", "#a5f3fc", "#22d3ee", "#0891b2"],
+      trade: ["#f59e0b", "#fbbf24", "#fcd34d", "#d97706", "#b45309"],
+      workforce: ["#ef4444", "#f87171", "#fca5a5", "#dc2626", "#b91c1c"],
+      military: ["#22c55e", "#4ade80", "#86efac", "#16a34a", "#15803d"],
     };
 
     const PATH_LABELS = {
@@ -478,13 +478,41 @@
       military: { enlistment_years: 4, use_gi_bill: true, gi_bill_major: "" },
     };
 
-    const MAX_INSTANCES = 5;
+    const MAX_INSTANCES = 10;
 
     // Region-based default tax rates (blended federal + state + payroll)
     const REGION_TAX_DEFAULTS = {
       northeast: 0.25, southeast: 0.22, midwest: 0.22,
       southwest: 0.22, west_coast: 0.27,
     };
+
+    // ── Auth State Helpers ──────────────────────────────────────
+    // Token stored in module scope (not localStorage — React rule)
+    let _authToken = null;
+    let _currentUser = null;
+
+    function setAuth(token, user) {
+      _authToken = token;
+      _currentUser = user;
+    }
+
+    function clearAuth() {
+      _authToken = null;
+      _currentUser = null;
+    }
+
+    function getAuthHeaders() {
+      if (!_authToken) return {};
+      return { "Authorization": "Bearer " + _authToken };
+    }
+
+    async function apiCall(url, options = {}) {
+      const headers = { "Content-Type": "application/json", ...getAuthHeaders(), ...(options.headers || {}) };
+      const resp = await fetch(url, { ...options, headers });
+      const data = await resp.json();
+      if (!resp.ok) throw { status: resp.status, ...data };
+      return data;
+    }
 
     // Path ordering for display grouping
     const PATH_ORDER = ["college", "cc_transfer", "trade", "workforce", "military"];
@@ -1763,7 +1791,7 @@
       { key: "cum_tax", label: "Taxes Paid", title: "Cumulative Taxes Paid", subtitle: "Total taxes paid through each age", suffix: null },
     ];
 
-    function ResultsPage({ quiz, onReset }) {
+    function ResultsPage({ quiz, onReset, onSave, saveStatus }) {
       const [results, setResults] = useState(null);
       const [chartData, setChartData] = useState([]);
       const [loading, setLoading] = useState(true);
@@ -1779,6 +1807,10 @@
       const [investReturn, setInvestReturn] = useState(0.07);
       const [taxRate, setTaxRate] = useState(REGION_TAX_DEFAULTS[quiz.region] || 0.22);
       const [startAge, setStartAge] = useState(18);
+
+      // Year-by-year breakdown table state
+      const [showTable, setShowTable] = useState(false);
+      const [tableTab, setTableTab] = useState("");
 
       // Build color and label maps from quiz instances
       const instances = quiz.path_instances || [];
@@ -2067,9 +2099,8 @@
 
           {/* Year-by-Year Breakdown */}
           {(() => {
-            const [showTable, setShowTable] = useState(false);
-            const [tableTab, setTableTab] = useState(results[0]?.scenario.instance_id || "");
-            const activeResult = results.find(r => (r.scenario.instance_id || r.scenario.path_type) === tableTab);
+            const effectiveTab = tableTab || (results[0]?.scenario.instance_id || results[0]?.scenario.path_type || "");
+            const activeResult = results.find(r => (r.scenario.instance_id || r.scenario.path_type) === effectiveTab);
 
             const pathFormulas = {
               college: "Income during school = part-time work earnings. After graduation: Starting Salary × (1 + Growth Rate)^years of experience. Grace period year = 50% of starting salary.",
@@ -2095,10 +2126,10 @@
                         const id = r.scenario.instance_id || r.scenario.path_type;
                         return (
                           <button key={id} onClick={() => setTableTab(id)}
-                            style={{padding: "10px 16px", fontSize: 12, fontWeight: tableTab === id ? 600 : 400,
-                              background: tableTab === id ? "var(--surface)" : "transparent",
-                              borderBottom: tableTab === id ? "2px solid var(--accent)" : "2px solid transparent",
-                              color: tableTab === id ? "var(--accent)" : "var(--text-dim)",
+                            style={{padding: "10px 16px", fontSize: 12, fontWeight: effectiveTab === id ? 600 : 400,
+                              background: effectiveTab === id ? "var(--surface)" : "transparent",
+                              borderBottom: effectiveTab === id ? "2px solid var(--accent)" : "2px solid transparent",
+                              color: effectiveTab === id ? "var(--accent)" : "var(--text-dim)",
                               border: "none", cursor: "pointer", whiteSpace: "nowrap"}}>
                             {labelMap[id] || id}
                           </button>
@@ -2153,11 +2184,18 @@
             );
           })()}
 
-          {/* Share results */}
+          {/* Save & Share */}
           <div className="card" style={{textAlign: "center", padding: "20px 24px"}}>
             <p style={{fontWeight: 600, marginBottom: 12}}>Found this useful?</p>
             <div style={{display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap"}}>
-              <button className="btn btn-primary" style={{padding: "10px 20px", fontSize: 13}}
+              {onSave && (
+                <button className="btn btn-primary" style={{padding: "10px 20px", fontSize: 13}}
+                  onClick={() => onSave(results)}
+                  disabled={saveStatus === "saving" || saveStatus === "saved"}>
+                  {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved!" : "Save Simulation"}
+                </button>
+              )}
+              <button className="btn btn-secondary" style={{padding: "10px 20px", fontSize: 13}}
                 onClick={() => {
                   const shareUrl = window.location.origin + "?sim=" + btoa(JSON.stringify(quiz));
                   const text = `I just compared ${results.length} career paths on Horizon18 — a free tool that shows the financial reality of college, trades, military, and more over ${projYears} years. Check it out:`;
@@ -2177,6 +2215,9 @@
                 Post on X
               </a>
             </div>
+            {saveStatus === "error" && (
+              <p style={{color: "var(--danger)", fontSize: 12, marginTop: 8}}>Failed to save. Please try again.</p>
+            )}
           </div>
 
           {/* How the Math Works */}
@@ -2483,12 +2524,276 @@
     // APP ROOT
     // ============================================================
 
+    // ══════════════════════════════════════════════════════════════
+    // AUTH COMPONENTS
+    // ══════════════════════════════════════════════════════════════
+
+    function LoginPage({ onLogin, onSwitch, onGuest }) {
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [error, setError] = useState("");
+      const [loading, setLoading] = useState(false);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError(""); setLoading(true);
+        try {
+          const data = await apiCall("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ email, password }),
+          });
+          setAuth(data.token, data.user);
+          onLogin(data.user);
+        } catch(err) {
+          setError(err.error || "Login failed");
+        } finally { setLoading(false); }
+      };
+
+      return (
+        <div className="quiz-container" style={{textAlign: "center"}}>
+          <h2 style={{marginBottom: 8}}>Sign In</h2>
+          <p style={{color: "var(--text-dim)", fontSize: 14, marginBottom: 24}}>
+            Save simulations and access them from any device.
+          </p>
+
+          <form onSubmit={handleSubmit} style={{textAlign: "left"}}>
+            <div className="form-group">
+              <label>Email</label>
+              <input className="form-input" type="email" value={email}
+                onChange={e => setEmail(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label>Password</label>
+              <input className="form-input" type="password" value={password}
+                onChange={e => setPassword(e.target.value)} required />
+            </div>
+            {error && <p style={{color: "var(--danger)", fontSize: 13, marginBottom: 12}}>{error}</p>}
+            <button className="btn btn-primary" type="submit" disabled={loading}
+              style={{width: "100%", marginBottom: 12}}>
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+
+          <p style={{fontSize: 13, color: "var(--text-dim)", marginBottom: 8}}>
+            Don't have an account?{" "}
+            <a href="#" onClick={e => {e.preventDefault(); onSwitch();}}
+              style={{color: "var(--accent)"}}>Create one</a>
+          </p>
+          <p style={{fontSize: 13}}>
+            <a href="#" onClick={e => {e.preventDefault(); onGuest();}}
+              style={{color: "var(--text-dim)"}}>Continue as guest</a>
+          </p>
+        </div>
+      );
+    }
+
+    function RegisterPage({ onRegister, onSwitch, onGuest }) {
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [confirm, setConfirm] = useState("");
+      const [name, setName] = useState("");
+      const [error, setError] = useState("");
+      const [loading, setLoading] = useState(false);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (password !== confirm) { setError("Passwords don't match"); return; }
+        if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
+        setError(""); setLoading(true);
+        try {
+          const data = await apiCall("/api/auth/register", {
+            method: "POST",
+            body: JSON.stringify({ email, password, display_name: name }),
+          });
+          setAuth(data.token, data.user);
+          onRegister(data.user);
+        } catch(err) {
+          setError(err.error || "Registration failed");
+        } finally { setLoading(false); }
+      };
+
+      return (
+        <div className="quiz-container" style={{textAlign: "center"}}>
+          <h2 style={{marginBottom: 8}}>Create Account</h2>
+          <p style={{color: "var(--text-dim)", fontSize: 14, marginBottom: 24}}>
+            Save and revisit your simulations anytime.
+          </p>
+
+          <form onSubmit={handleSubmit} style={{textAlign: "left"}}>
+            <div className="form-group">
+              <label>Name (optional)</label>
+              <input className="form-input" type="text" value={name}
+                onChange={e => setName(e.target.value)} placeholder="Your name" />
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input className="form-input" type="email" value={email}
+                onChange={e => setEmail(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label>Password</label>
+              <input className="form-input" type="password" value={password}
+                onChange={e => setPassword(e.target.value)} required placeholder="At least 8 characters" />
+            </div>
+            <div className="form-group">
+              <label>Confirm Password</label>
+              <input className="form-input" type="password" value={confirm}
+                onChange={e => setConfirm(e.target.value)} required />
+            </div>
+            {error && <p style={{color: "var(--danger)", fontSize: 13, marginBottom: 12}}>{error}</p>}
+            <button className="btn btn-primary" type="submit" disabled={loading}
+              style={{width: "100%", marginBottom: 12}}>
+              {loading ? "Creating account..." : "Create Account"}
+            </button>
+          </form>
+
+          <p style={{fontSize: 13, color: "var(--text-dim)", marginBottom: 8}}>
+            Already have an account?{" "}
+            <a href="#" onClick={e => {e.preventDefault(); onSwitch();}}
+              style={{color: "var(--accent)"}}>Sign in</a>
+          </p>
+          <p style={{fontSize: 13}}>
+            <a href="#" onClick={e => {e.preventDefault(); onGuest();}}
+              style={{color: "var(--text-dim)"}}>Continue as guest</a>
+          </p>
+        </div>
+      );
+    }
+
+    function DashboardPage({ onLoadSim, onNewSim, onLogout }) {
+      const [sims, setSims] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [editingId, setEditingId] = useState(null);
+      const [editTitle, setEditTitle] = useState("");
+
+      useEffect(() => {
+        apiCall("/api/simulations")
+          .then(data => { setSims(data.simulations || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, []);
+
+      const handleDelete = async (id) => {
+        if (!confirm("Delete this simulation?")) return;
+        try {
+          await apiCall("/api/simulations/" + id, { method: "DELETE" });
+          setSims(prev => prev.filter(s => s.id !== id));
+        } catch(e) {}
+      };
+
+      const handleRename = async (id) => {
+        if (!editTitle.trim()) return;
+        try {
+          await apiCall("/api/simulations/" + id, {
+            method: "PATCH",
+            body: JSON.stringify({ title: editTitle }),
+          });
+          setSims(prev => prev.map(s => s.id === id ? {...s, title: editTitle} : s));
+          setEditingId(null);
+        } catch(e) {}
+      };
+
+      const handleShare = (shareId) => {
+        const url = window.location.origin + "/sim/" + shareId;
+        navigator.clipboard.writeText(url).then(() => alert("Share link copied!"));
+      };
+
+      if (loading) return <div className="loading"><div className="spinner"></div><p>Loading your simulations...</p></div>;
+
+      return (
+        <div>
+          <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24}}>
+            <h2 style={{fontSize: 22}}>My Simulations</h2>
+            <div style={{display: "flex", gap: 8}}>
+              <button className="btn btn-primary" style={{padding: "8px 16px", fontSize: 13}} onClick={onNewSim}>
+                New Simulation
+              </button>
+            </div>
+          </div>
+
+          {sims.length === 0 ? (
+            <div className="card" style={{textAlign: "center", padding: 40}}>
+              <p style={{color: "var(--text-dim)", marginBottom: 16}}>No saved simulations yet.</p>
+              <button className="btn btn-primary" onClick={onNewSim}>Run Your First Simulation</button>
+            </div>
+          ) : (
+            <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16}}>
+              {sims.map(sim => (
+                <div key={sim.id} className="card" style={{padding: 16, cursor: "pointer"}}
+                  onClick={() => onLoadSim(sim)}>
+                  {editingId === sim.id ? (
+                    <div onClick={e => e.stopPropagation()} style={{marginBottom: 8}}>
+                      <input className="form-input" value={editTitle}
+                        onChange={e => setEditTitle(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") handleRename(sim.id); if (e.key === "Escape") setEditingId(null); }}
+                        autoFocus style={{fontSize: 14, padding: "6px 10px", marginBottom: 6}} />
+                      <div style={{display: "flex", gap: 6}}>
+                        <button className="btn btn-primary" style={{padding: "4px 12px", fontSize: 12}} onClick={() => handleRename(sim.id)}>Save</button>
+                        <button className="btn btn-secondary" style={{padding: "4px 12px", fontSize: 12}} onClick={() => setEditingId(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <h3 style={{fontSize: 15, fontWeight: 600, marginBottom: 6}}>{sim.title || "Untitled"}</h3>
+                  )}
+                  <p style={{fontSize: 12, color: "var(--text-dim)", marginBottom: 12}}>
+                    {new Date(sim.created_at).toLocaleDateString()}
+                  </p>
+                  {sim.results_summary && (
+                    <div style={{display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12}}>
+                      {(sim.results_summary.paths || []).map((p, i) => (
+                        <span key={i} className="badge">{p}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{display: "flex", gap: 6}} onClick={e => e.stopPropagation()}>
+                    <button className="btn btn-secondary" style={{padding: "4px 10px", fontSize: 11}}
+                      onClick={() => { setEditingId(sim.id); setEditTitle(sim.title || ""); }}>
+                      Rename
+                    </button>
+                    <button className="btn btn-secondary" style={{padding: "4px 10px", fontSize: 11}}
+                      onClick={() => handleShare(sim.share_id)}>
+                      Share
+                    </button>
+                    <button className="btn btn-secondary" style={{padding: "4px 10px", fontSize: 11, color: "var(--danger)"}}
+                      onClick={() => handleDelete(sim.id)}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function App() {
       const [page, setPage] = useState("quiz");
       const [quizData, setQuizData] = useState(null);
+      const [user, setUser] = useState(null);
+      const [authPage, setAuthPage] = useState(null); // "login" | "register" | null
+      const [saveStatus, setSaveStatus] = useState(null); // "saving" | "saved" | "error" | null
 
+      // Check for shared simulation link on load
       useEffect(() => {
+        const path = window.location.pathname;
         const params = new URLSearchParams(window.location.search);
+
+        // DB-backed share link: /sim/abc123
+        const simMatch = path.match(/^\/sim\/([a-z0-9]+)$/);
+        if (simMatch) {
+          fetch("/api/sim/" + simMatch[1])
+            .then(r => r.json())
+            .then(data => {
+              if (data.quiz_state) {
+                setQuizData(data.quiz_state);
+                setPage("results");
+              }
+            })
+            .catch(() => {});
+          return;
+        }
+
+        // Legacy base64 share link: ?sim=...
         const simParam = params.get("sim");
         if (simParam) {
           try {
@@ -2499,22 +2804,103 @@
         }
       }, []);
 
+      const handleLogin = (u) => { setUser(u); setAuthPage(null); };
+      const handleLogout = () => { clearAuth(); setUser(null); setPage("quiz"); setQuizData(null); };
+
       const handleQuizComplete = (quiz) => {
         setQuizData(quiz);
         setPage("results");
+        setSaveStatus(null);
         window.scrollTo(0, 0);
       };
 
       const handleReset = () => {
         setQuizData(null);
         setPage("quiz");
+        setSaveStatus(null);
         window.scrollTo(0, 0);
       };
 
+      const handleSave = async (results) => {
+        if (!user) { setAuthPage("login"); return; }
+        setSaveStatus("saving");
+        try {
+          // Build a summary for dashboard cards
+          const summary = {
+            paths: results.map(r => r.label),
+            net_worths: results.map(r => {
+              const last = r.snapshots[r.snapshots.length - 1];
+              return last ? last.net_worth : 0;
+            }),
+          };
+          const title = results.map(r => r.label).join(" vs ");
+          await apiCall("/api/simulations/save", {
+            method: "POST",
+            body: JSON.stringify({ quiz_state: quizData, title, results_summary: summary }),
+          });
+          setSaveStatus("saved");
+        } catch(e) {
+          setSaveStatus("error");
+        }
+      };
+
+      const handleLoadSim = (sim) => {
+        setQuizData(sim.quiz_state);
+        setPage("results");
+        setSaveStatus(null);
+        window.scrollTo(0, 0);
+      };
+
+      // Auth pages overlay
+      if (authPage === "login") {
+        return (
+          <div className="app">
+            <div className="header" style={{cursor: "pointer"}} onClick={() => setAuthPage(null)}>
+              <h1>Horizon18</h1>
+              <p>Compare paths. Project outcomes. Decide with data.</p>
+            </div>
+            <LoginPage onLogin={handleLogin} onSwitch={() => setAuthPage("register")}
+              onGuest={() => setAuthPage(null)} />
+          </div>
+        );
+      }
+      if (authPage === "register") {
+        return (
+          <div className="app">
+            <div className="header" style={{cursor: "pointer"}} onClick={() => setAuthPage(null)}>
+              <h1>Horizon18</h1>
+              <p>Compare paths. Project outcomes. Decide with data.</p>
+            </div>
+            <RegisterPage onRegister={handleLogin} onSwitch={() => setAuthPage("login")}
+              onGuest={() => setAuthPage(null)} />
+          </div>
+        );
+      }
+
       return (
         <div className="app">
-          <div className="header">
-            <h1>Horizon18</h1>
+          <div className="header" style={{position: "relative"}}>
+            <div style={{position: "absolute", top: 0, right: 0, display: "flex", gap: 8, alignItems: "center"}}>
+              {user ? (
+                <>
+                  <button className="btn btn-secondary" style={{padding: "6px 12px", fontSize: 12}}
+                    onClick={() => { setPage("dashboard"); window.scrollTo(0,0); }}>
+                    Dashboard
+                  </button>
+                  <span style={{fontSize: 12, color: "var(--text-dim)"}}>{user.display_name || user.email}</span>
+                  <button className="btn btn-secondary" style={{padding: "6px 12px", fontSize: 12}}
+                    onClick={handleLogout}>
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <button className="btn btn-secondary" style={{padding: "6px 12px", fontSize: 12}}
+                  onClick={() => setAuthPage("login")}>
+                  Sign In
+                </button>
+              )}
+            </div>
+            <h1 style={{cursor: "pointer"}} onClick={handleReset}>Horizon18</h1>
             <p>Compare paths. Project outcomes. Decide with data.</p>
           </div>
 
@@ -2530,7 +2916,8 @@
           )}
 
           {page === "quiz" && <QuizPage onComplete={handleQuizComplete} />}
-          {page === "results" && <ResultsPage quiz={quizData} onReset={handleReset} />}
+          {page === "results" && <ResultsPage quiz={quizData} onReset={handleReset} onSave={handleSave} saveStatus={saveStatus} />}
+          {page === "dashboard" && <DashboardPage onLoadSim={handleLoadSim} onNewSim={handleReset} onLogout={handleLogout} />}
         </div>
       );
     }

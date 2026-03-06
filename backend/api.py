@@ -212,8 +212,8 @@ def _handle_multi_instance(body: dict, region: Region, projection_years: int) ->
     # Validate count
     if len(instances) == 0:
         return {"status": 422, "body": {"error": "path_instances must be non-empty."}}
-    if len(instances) > 5:
-        return {"status": 422, "body": {"error": "Maximum 5 path instances can be compared."}}
+    if len(instances) > 10:
+        return {"status": 422, "body": {"error": "Maximum 10 path instances can be compared."}}
 
     # Validate financial overrides (if provided)
     override_err = _validate_financial_overrides(body)
@@ -339,8 +339,8 @@ def handle_simulate(body: dict) -> dict:
             "valid_paths": [p.value for p in PathType],
         }}
 
-    if len(selected_paths_raw) > 5:
-        return {"status": 422, "body": {"error": "Maximum 5 paths can be compared."}}
+    if len(selected_paths_raw) > 10:
+        return {"status": 422, "body": {"error": "Maximum 10 paths can be compared."}}
 
     try:
         selected_paths = [PathType(p) for p in selected_paths_raw]

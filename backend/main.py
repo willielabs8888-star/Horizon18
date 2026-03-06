@@ -1,14 +1,16 @@
 """
 Backend API server for Horizon18.
 
-Uses Python's built-in http.server — zero external dependencies.
-Serves both the API (POST /api/simulate) and the frontend (static files).
+Flask-based server with JWT authentication, PostgreSQL persistence,
+and the same simulation API. Serves both API endpoints and the
+frontend SPA.
 
-Start with:
-    cd HS_Grad_Financial_Sim
+Start locally:
+    cd Horizon18
     python backend/main.py
 
-Then open http://localhost:8000 in your browser to use the app.
+Production (Railway):
+    gunicorn backend.main:app --bind 0.0.0.0:$PORT
 """
 
 from __future__ import annotations
@@ -16,9 +18,10 @@ from __future__ import annotations
 import sys
 import os
 import json
-import mimetypes
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
+import re
+
+from flask import Flask, request, jsonify, send_from_directory, g
+from flask_cors import CORS
 
 # Ensure the project root is on the Python path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,12 +29,29 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from backend.api import handle_simulate
+from backend.auth import (
+    hash_password, check_password, create_jwt, decode_jwt,
+    auth_required, auth_optional, exchange_google_token,
+)
+from backend.db import (
+    create_user, get_user_by_email, get_user_by_id, get_user_by_google_id,
+    link_google_id, save_simulation, get_user_simulations,
+    get_simulation_by_share_id, delete_simulation, update_simulation_title,
+    generate_share_id, DATABASE_URL,
+)
 
 PORT = int(os.environ.get("PORT", 8000))
 FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
 
-# Simple analytics — persisted to disk so it survives restarts
+# ── App setup ──────────────────────────────────────────────────────
+
+app = Flask(__name__, static_folder=None)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+# ── Analytics (simple file-based, same as before) ──────────────────
+
 _ANALYTICS_FILE = os.path.join(PROJECT_ROOT, "analytics.json")
+
 
 def _load_analytics():
     try:
@@ -40,12 +60,14 @@ def _load_analytics():
     except (FileNotFoundError, json.JSONDecodeError):
         return {"page_views": 0, "simulations": 0, "first_seen": None}
 
+
 def _save_analytics(data):
     try:
         with open(_ANALYTICS_FILE, "w") as f:
             f.write(json.dumps(data))
     except Exception:
         pass
+
 
 def _track_event(event_type):
     from datetime import datetime
@@ -56,142 +78,290 @@ def _track_event(event_type):
     _save_analytics(data)
 
 
-class APIHandler(BaseHTTPRequestHandler):
-    """Serves JSON API endpoints and static frontend files."""
+# ══════════════════════════════════════════════════════════════════
+# EXISTING API ENDPOINTS (preserved from http.server version)
+# ══════════════════════════════════════════════════════════════════
 
-    # ------------------------------------------------------------------
-    # Response helpers
-    # ------------------------------------------------------------------
+@app.route("/api/health")
+def api_health():
+    return jsonify({"status": "ok"})
 
-    def _send_json(self, status: int, data: dict):
-        body = json.dumps(data, indent=2).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self._send_cors_headers()
-        self.end_headers()
-        self.wfile.write(body)
 
-    def _send_file(self, filepath: str):
-        """Serve a static file from the frontend directory."""
-        try:
-            with open(filepath, "rb") as f:
-                content = f.read()
-            mime_type, _ = mimetypes.guess_type(filepath)
-            if mime_type is None:
-                mime_type = "application/octet-stream"
-            self.send_response(200)
-            self.send_header("Content-Type", mime_type)
-            self.send_header("Content-Length", str(len(content)))
-            self._send_cors_headers()
-            self.end_headers()
-            self.wfile.write(content)
-        except FileNotFoundError:
-            self._send_json(404, {"error": f"File not found: {filepath}"})
+@app.route("/api/analytics")
+def api_analytics():
+    return jsonify(_load_analytics())
 
-    def _send_cors_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
-    # ------------------------------------------------------------------
-    # HTTP methods
-    # ------------------------------------------------------------------
+@app.route("/api/options")
+def api_options():
+    return jsonify(_get_options())
 
-    def do_OPTIONS(self):
-        """Handle CORS preflight requests."""
-        self.send_response(204)
-        self._send_cors_headers()
-        self.end_headers()
 
-    def do_GET(self):
-        path = urlparse(self.path).path
+@app.route("/api/metros")
+def api_metros():
+    from defaults.regions import get_metro_list, get_metro_count
+    metros = get_metro_list()
+    return jsonify({"metros": metros, "count": get_metro_count()})
 
-        # --- API endpoints ---
-        if path == "/api/health":
-            self._send_json(200, {"status": "ok"})
-            return
 
-        if path == "/api/analytics":
-            data = _load_analytics()
-            self._send_json(200, data)
-            return
+@app.route("/api/schools/search")
+def api_schools_search():
+    q = request.args.get("q", "")
+    level = request.args.get("level", None)
+    from defaults.schools import search_schools
+    results = search_schools(q, limit=15)
+    if level:
+        results = [s for s in results if str(s.get("level")) == level][:10]
+    return jsonify({"schools": results})
 
-        if path == "/api/options":
-            self._send_json(200, _get_options())
-            return
 
-        if path == "/api/metros":
-            from defaults.regions import get_metro_list, get_metro_count
-            metros = get_metro_list()
-            self._send_json(200, {"metros": metros, "count": get_metro_count()})
-            return
+@app.route("/api/simulate", methods=["POST"])
+def api_simulate():
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "Request body is empty or invalid JSON."}), 400
 
-        if path == "/api/schools/search":
-            from urllib.parse import parse_qs
-            query_params = parse_qs(urlparse(self.path).query)
-            q = query_params.get("q", [""])[0]
-            level = query_params.get("level", [None])[0]  # "1" for 4-year, "2" for 2-year
-            from defaults.schools import search_schools
-            results = search_schools(q, limit=15)
-            if level:
-                results = [s for s in results if str(s.get("level")) == level][:10]
-            self._send_json(200, {"schools": results})
-            return
+    _track_event("simulations")
+    result = handle_simulate(body)
+    return jsonify(result["body"]), result["status"]
 
-        # --- Frontend static files ---
-        # Root → serve index.html
-        if path == "/" or path == "":
-            _track_event("page_views")
-            self._send_file(os.path.join(FRONTEND_DIR, "index.html"))
-            return
 
-        # Try to serve the requested file from frontend/
-        # Strip leading slash and resolve
-        relative = path.lstrip("/")
-        filepath = os.path.join(FRONTEND_DIR, relative)
+# ══════════════════════════════════════════════════════════════════
+# AUTH ENDPOINTS
+# ══════════════════════════════════════════════════════════════════
 
-        # Security: prevent path traversal
-        real_frontend = os.path.realpath(FRONTEND_DIR)
-        real_filepath = os.path.realpath(filepath)
-        if not real_filepath.startswith(real_frontend):
-            self._send_json(403, {"error": "Forbidden"})
-            return
+def _require_db():
+    """Return error response if database is not configured, else None."""
+    if not DATABASE_URL:
+        return jsonify({"error": "Database not configured. Account features are disabled."}), 503
+    return None
 
-        if os.path.isfile(filepath):
-            self._send_file(filepath)
-        else:
-            # For SPA-style routing, fall back to index.html
-            self._send_file(os.path.join(FRONTEND_DIR, "index.html"))
 
-    def do_POST(self):
-        path = urlparse(self.path).path
+@app.route("/api/auth/register", methods=["POST"])
+def auth_register():
+    err = _require_db()
+    if err:
+        return err
+    body = request.get_json(silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password", "")
+    display_name = body.get("display_name", "")
 
-        if path == "/api/simulate":
-            content_length = int(self.headers.get("Content-Length", 0))
-            if content_length == 0:
-                self._send_json(400, {"error": "Request body is empty."})
-                return
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
 
-            raw_body = self.rfile.read(content_length)
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
 
-            try:
-                body = json.loads(raw_body)
-            except json.JSONDecodeError as e:
-                self._send_json(400, {"error": f"Invalid JSON: {e}"})
-                return
+    if not re.match(r"^[^@]+@[^@]+\.[^@]+$", email):
+        return jsonify({"error": "Invalid email address"}), 400
 
-            _track_event("simulations")
-            result = handle_simulate(body)
-            self._send_json(result["status"], result["body"])
+    existing = get_user_by_email(email)
+    if existing:
+        return jsonify({"error": "An account with this email already exists"}), 409
 
-        else:
-            self._send_json(404, {"error": f"Not found: {path}"})
+    pw_hash = hash_password(password)
+    user = create_user(email, password_hash=pw_hash, display_name=display_name or email.split("@")[0])
+    token = create_jwt(user["id"], email)
 
-    def log_message(self, format, *args):
-        """Custom log format."""
-        print(f"  [{self.log_date_time_string()}] {format % args}")
+    return jsonify({
+        "token": token,
+        "user": {"id": user["id"], "email": email, "display_name": user["display_name"]},
+    }), 201
 
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    err = _require_db()
+    if err:
+        return err
+    body = request.get_json(silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password", "")
+
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+
+    user = get_user_by_email(email)
+    if not user or not user.get("password_hash"):
+        return jsonify({"error": "Invalid email or password"}), 401
+
+    if not check_password(password, user["password_hash"]):
+        return jsonify({"error": "Invalid email or password"}), 401
+
+    token = create_jwt(user["id"], email)
+    return jsonify({
+        "token": token,
+        "user": {"id": user["id"], "email": email, "display_name": user["display_name"]},
+    })
+
+
+@app.route("/api/auth/google", methods=["POST"])
+def auth_google():
+    err = _require_db()
+    if err:
+        return err
+    body = request.get_json(silent=True) or {}
+    id_token = body.get("id_token", "")
+
+    if not id_token:
+        return jsonify({"error": "Google ID token is required"}), 400
+
+    google_info = exchange_google_token(id_token)
+    if not google_info:
+        return jsonify({"error": "Invalid Google token"}), 401
+
+    # Check if user exists by google_id
+    user = get_user_by_google_id(google_info["google_id"])
+    if user:
+        token = create_jwt(user["id"], user["email"])
+        return jsonify({
+            "token": token,
+            "user": {"id": user["id"], "email": user["email"], "display_name": user["display_name"]},
+        })
+
+    # Check if user exists by email (registered with password, now using Google)
+    user = get_user_by_email(google_info["email"])
+    if user:
+        link_google_id(user["id"], google_info["google_id"])
+        token = create_jwt(user["id"], user["email"])
+        return jsonify({
+            "token": token,
+            "user": {"id": user["id"], "email": user["email"], "display_name": user["display_name"]},
+        })
+
+    # New user via Google
+    user = create_user(
+        email=google_info["email"],
+        google_id=google_info["google_id"],
+        display_name=google_info["name"],
+    )
+    token = create_jwt(user["id"], google_info["email"])
+    return jsonify({
+        "token": token,
+        "user": {"id": user["id"], "email": google_info["email"], "display_name": user["display_name"]},
+    }), 201
+
+
+@app.route("/api/auth/me")
+@auth_required
+def auth_me():
+    user = get_user_by_id(g.user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify({
+        "id": user["id"],
+        "email": user["email"],
+        "display_name": user["display_name"],
+    })
+
+
+# ══════════════════════════════════════════════════════════════════
+# SIMULATION CRUD ENDPOINTS
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/simulations/save", methods=["POST"])
+@auth_required
+def sim_save():
+    body = request.get_json(silent=True) or {}
+    quiz_state = body.get("quiz_state")
+    title = body.get("title", "Untitled Simulation")
+    results_summary = body.get("results_summary")
+
+    if not quiz_state:
+        return jsonify({"error": "quiz_state is required"}), 400
+
+    share_id = generate_share_id()
+    sim = save_simulation(
+        user_id=g.user_id,
+        share_id=share_id,
+        title=title,
+        quiz_state=quiz_state,
+        results_summary=results_summary,
+    )
+    # Convert datetime for JSON
+    for key in ("created_at",):
+        if sim.get(key) and hasattr(sim[key], "isoformat"):
+            sim[key] = sim[key].isoformat()
+    return jsonify(sim), 201
+
+
+@app.route("/api/simulations")
+@auth_required
+def sim_list():
+    sims = get_user_simulations(g.user_id)
+    for s in sims:
+        for key in ("created_at", "updated_at"):
+            if s.get(key) and hasattr(s[key], "isoformat"):
+                s[key] = s[key].isoformat()
+    return jsonify({"simulations": sims})
+
+
+@app.route("/api/simulations/<int:sim_id>", methods=["DELETE"])
+@auth_required
+def sim_delete(sim_id):
+    deleted = delete_simulation(sim_id, g.user_id)
+    if not deleted:
+        return jsonify({"error": "Simulation not found"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/api/simulations/<int:sim_id>", methods=["PATCH"])
+@auth_required
+def sim_update(sim_id):
+    body = request.get_json(silent=True) or {}
+    new_title = body.get("title")
+    if not new_title:
+        return jsonify({"error": "title is required"}), 400
+
+    updated = update_simulation_title(sim_id, g.user_id, new_title)
+    if not updated:
+        return jsonify({"error": "Simulation not found"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/api/sim/<share_id>")
+def sim_load_shared(share_id):
+    sim = get_simulation_by_share_id(share_id)
+    if not sim:
+        return jsonify({"error": "Simulation not found"}), 404
+    return jsonify({
+        "quiz_state": sim["quiz_state"],
+        "title": sim["title"],
+        "share_id": sim["share_id"],
+    })
+
+
+# ══════════════════════════════════════════════════════════════════
+# STATIC FILE SERVING (SPA fallback)
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/")
+def serve_index():
+    _track_event("page_views")
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/<path:path>")
+def serve_static(path):
+    filepath = os.path.join(FRONTEND_DIR, path)
+    real_frontend = os.path.realpath(FRONTEND_DIR)
+    real_filepath = os.path.realpath(filepath)
+
+    # Security: prevent path traversal
+    if not real_filepath.startswith(real_frontend):
+        return jsonify({"error": "Forbidden"}), 403
+
+    if os.path.isfile(filepath):
+        return send_from_directory(FRONTEND_DIR, path)
+
+    # SPA fallback: serve index.html for all non-file routes
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+# ══════════════════════════════════════════════════════════════════
+# HELPERS
+# ══════════════════════════════════════════════════════════════════
 
 def _get_options() -> dict:
     """Return all enum values the frontend needs for quiz dropdowns."""
@@ -217,21 +387,19 @@ def _get_options() -> dict:
     }
 
 
+# ══════════════════════════════════════════════════════════════════
+# ENTRY POINT
+# ══════════════════════════════════════════════════════════════════
+
 def main():
-    server = HTTPServer(("0.0.0.0", PORT), APIHandler)
+    db_status = "connected" if DATABASE_URL else "not configured (auth/save disabled)"
     print(f"\n  Horizon18")
     print(f"  ================================")
-    print(f"  App:     http://localhost:{PORT}")
-    print(f"  API:     http://localhost:{PORT}/api/options")
-    print(f"           POST http://localhost:{PORT}/api/simulate")
+    print(f"  App:      http://localhost:{PORT}")
+    print(f"  Database: {db_status}")
     print(f"\n  Open http://localhost:{PORT} in your browser to use the app.")
     print(f"  Press Ctrl+C to stop.\n")
-
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\n  Server stopped.")
-        server.server_close()
+    app.run(host="0.0.0.0", port=PORT, debug=True)
 
 
 if __name__ == "__main__":
