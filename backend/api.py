@@ -265,7 +265,8 @@ def _handle_multi_instance(body: dict, region: Region, projection_years: int) ->
 
             # Get the answer builder for this path type and build answers from instance config
             field_name, builder_fn = _ANSWER_BUILDERS[path_type]
-            answers = builder_fn(inst)
+            config = inst.get(field_name, inst)  # Use nested config if present, else top-level
+            answers = builder_fn(config)
             setattr(quiz, _QUIZ_FIELD_MAP[path_type], answers)
 
             # Build scenario and stamp instance_id
