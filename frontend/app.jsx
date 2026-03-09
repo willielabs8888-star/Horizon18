@@ -2551,13 +2551,6 @@
             <p>Compare paths. Project outcomes. Decide with data.</p>
           </div>
 
-          {page === "quiz" && !quizData && (
-            <div style={{maxWidth: 640, margin: "0 auto 24px", textAlign: "center"}}>
-              <p style={{color: "var(--text)", fontSize: 16, lineHeight: 1.6, marginBottom: 16}}>
-                College isn't the only path. Compare your options — with real numbers.
-              </p>
-            </div>
-          )}
 
           {page === "quiz" && <QuizPage onComplete={handleQuizComplete} />}
           {page === "results" && <ResultsPage quiz={quizData} onReset={handleReset} onSave={handleSave} saveStatus={saveStatus} />}

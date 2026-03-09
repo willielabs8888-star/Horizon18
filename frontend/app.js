@@ -3473,20 +3473,7 @@ function App() {
       cursor: "pointer"
     },
     onClick: handleReset
-  }, "Horizon18"), /*#__PURE__*/React.createElement("p", null, "Compare paths. Project outcomes. Decide with data.")), page === "quiz" && !quizData && /*#__PURE__*/React.createElement("div", {
-    style: {
-      maxWidth: 640,
-      margin: "0 auto 24px",
-      textAlign: "center"
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text)",
-      fontSize: 16,
-      lineHeight: 1.6,
-      marginBottom: 16
-    }
-  }, "College isn't the only path. Compare your options \u2014 with real numbers.")), page === "quiz" && /*#__PURE__*/React.createElement(QuizPage, {
+  }, "Horizon18"), /*#__PURE__*/React.createElement("p", null, "Compare paths. Project outcomes. Decide with data.")), page === "quiz" && /*#__PURE__*/React.createElement(QuizPage, {
     onComplete: handleQuizComplete
   }), page === "results" && /*#__PURE__*/React.createElement(ResultsPage, {
     quiz: quizData,
