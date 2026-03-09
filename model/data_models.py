@@ -338,3 +338,8 @@ class SimResult:
     net_worth_at_50: float = 0.0
 
     debt_burden_ratio: float = 0.0      # Peak (annual_loan_payment / net_income)
+
+    # Loan feasibility tracking
+    loan_extended: bool = False         # True if payments were capped by income
+    loan_term_original: int = 0         # User-selected repayment term (years)
+    loan_term_actual: int = 0           # Actual years to pay off (may be longer)

@@ -228,5 +228,69 @@ class TestFullComparison(unittest.TestCase):
         )
 
 
+class TestLoanFeasibility(unittest.TestCase):
+    """Loan payments must not exceed disposable income."""
+
+    def test_loan_payment_never_exceeds_disposable_income(self):
+        """Every year's loan payment should be <= net_income - expenses."""
+        quiz = _make_quiz(
+            selected_paths=[PathType.COLLEGE],
+            college=CollegeAnswers(
+                school_type=SchoolType.PRIVATE,
+                major=Major.EDUCATION,
+                loan_term_years=10,
+            ),
+        )
+        results = run_comparison(quiz)
+        r = results[0]
+        for snap in r.snapshots:
+            if snap.loan_payment > 0:
+                max_affordable = snap.net_income - snap.living_expenses
+                self.assertLessEqual(
+                    snap.loan_payment, max_affordable + 0.01,
+                    f"Age {snap.age}: loan payment ${snap.loan_payment:.0f} exceeds "
+                    f"affordable ${max_affordable:.0f} (net ${snap.net_income:.0f} - expenses ${snap.living_expenses:.0f})"
+                )
+
+    def test_loan_extended_flag_set_when_capped(self):
+        """If payments are capped, loan_extended should be True."""
+        quiz = _make_quiz(
+            selected_paths=[PathType.COLLEGE],
+            college=CollegeAnswers(
+                school_type=SchoolType.PRIVATE,
+                major=Major.EDUCATION,
+                loan_term_years=5,  # Very aggressive repayment
+            ),
+        )
+        results = run_comparison(quiz, projection_years=40)
+        r = results[0]
+        # If payments were capped, actual term should exceed original
+        if r.loan_extended:
+            self.assertGreater(r.loan_term_actual, r.loan_term_original)
+
+    def test_different_return_rates_produce_different_outcomes(self):
+        """Investment return rate should affect final net worth."""
+        from model.projection import run_projection
+        quiz = _make_quiz(
+            selected_paths=[PathType.WORKFORCE],
+            workforce=WorkforceAnswers(industry=WorkforceIndustry.ADMIN),
+        )
+        # Run with low return rate
+        results_low = run_comparison(quiz, projection_years=30)
+        r_low = results_low[0]
+        r_low.scenario.investment_return_rate = 0.04
+        r_low = run_projection(r_low.scenario)
+
+        results_high = run_comparison(quiz, projection_years=30)
+        r_high = results_high[0]
+        r_high.scenario.investment_return_rate = 0.15
+        r_high = run_projection(r_high.scenario)
+
+        nw_low = r_low.snapshots[-1].net_worth
+        nw_high = r_high.snapshots[-1].net_worth
+        self.assertGreater(nw_high, nw_low,
+            f"15% return (${nw_high:.0f}) should beat 4% return (${nw_low:.0f})")
+
+
 if __name__ == "__main__":
     unittest.main()

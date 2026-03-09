@@ -152,13 +152,24 @@
       const num = sameType.length > 1 ? ` #${(idx >= 0 ? idx + 1 : 1)}` : "";
       const base = PATH_LABELS[inst.path_type] || inst.path_type;
 
-      // Include specific field (major, trade, industry) for clarity
+      // Include school name, major, trade, or industry for clarity
       let specific = "";
-      if (inst.path_type === "college" && inst.major) specific = ` – ${fmtEnum(inst.major)}`;
-      else if (inst.path_type === "cc_transfer" && inst.major) specific = ` – ${fmtEnum(inst.major)}`;
-      else if (inst.path_type === "trade" && inst.trade_type) specific = ` – ${fmtEnum(inst.trade_type)}`;
-      else if (inst.path_type === "workforce" && inst.industry) specific = ` – ${fmtEnum(inst.industry)}`;
-      else if (inst.path_type === "military") specific = inst.use_gi_bill ? ` – GI Bill (${fmtEnum(inst.gi_bill_major) || "Undecided"})` : " – Civilian";
+      if (inst.path_type === "college") {
+        const school = inst._selected_school ? inst._selected_school.name : null;
+        const major = inst.major ? fmtEnum(inst.major) : null;
+        specific = " – " + [major, school].filter(Boolean).join(" – ") || "";
+      } else if (inst.path_type === "cc_transfer") {
+        const cc = inst._selected_cc ? inst._selected_cc.name : "Community College";
+        const transfer = inst._selected_transfer ? inst._selected_transfer.name : LABEL_MAP[inst.transfer_university_type];
+        const major = inst.major ? fmtEnum(inst.major) : null;
+        specific = " – " + [major, cc + " → " + (transfer || "Transfer")].filter(Boolean).join(" – ");
+      } else if (inst.path_type === "trade" && inst.trade_type) {
+        specific = ` – ${fmtEnum(inst.trade_type)}`;
+      } else if (inst.path_type === "workforce" && inst.industry) {
+        specific = ` – ${fmtEnum(inst.industry)}`;
+      } else if (inst.path_type === "military") {
+        specific = inst.use_gi_bill ? ` – GI Bill (${fmtEnum(inst.gi_bill_major) || "Undecided"})` : " – Civilian";
+      }
 
       return `${base}${specific}${num}`;
     }
@@ -1689,6 +1700,18 @@
                         <span style={{color:"var(--text-dim)", fontSize:12}}> Peak annual loan payment as % of take-home pay. Under 10% is comfortable; over 15% can be a strain.</span>
                       </p>
                     )}
+                    {sorted.filter(r => r.summary.loan_extended).length > 0 && (
+                      <p style={{marginBottom: 12, padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 8, fontSize: 13}}>
+                        <strong style={{color: "#f59e0b"}}>Loan repayment adjusted:</strong>{" "}
+                        {sorted.filter(r => r.summary.loan_extended).map(r => {
+                          const rid = r.scenario.instance_id || r.scenario.path_type;
+                          const orig = r.summary.loan_term_original;
+                          const actual = r.summary.loan_term_actual;
+                          return `${labelMap[rid]}: selected ${orig}-year repayment, but income-based payments extend it to ~${actual} years`;
+                        }).join("; ")}.
+                        <br /><span style={{color: "var(--text-dim)"}}>Loan payments are capped at what you can afford after living expenses. The remaining balance continues accruing interest.</span>
+                      </p>
+                    )}
                     <p style={{color: "var(--text-dim)", fontStyle: "italic", marginTop: 16}}>
                       Try adjusting the timeline slider above — shorter horizons (10-15 years) tend to favor paths
                       with no debt, while longer horizons (30+ years) show the compounding advantage of higher salaries.
@@ -2061,6 +2084,18 @@
                   Monthly payment ≈ $953<br/>
                   Total paid over 10 years ≈ $114,360<br/>
                   Total interest ≈ $30,476
+                </div>
+
+                <p><strong>⚠️ Loan payments are capped at what you can afford:</strong></p>
+                <div className="hiw-formula">
+                  Actual Payment = min(Required Payment, Net Income − Living Expenses)<br/><br/>
+                  If your income minus expenses is less than the required monthly payment,<br/>
+                  the simulation only pays what you can actually afford.<br/>
+                  The remaining balance continues accruing interest, and your loan takes<br/>
+                  longer to pay off than the originally selected term.<br/><br/>
+                  Example: Required payment = $953/month ($11,436/year)<br/>
+                  But disposable income = $8,000/year<br/>
+                  → You pay $8,000. The shortfall stays on the loan with interest.
                 </div>
 
                 <p><strong>⚠️ Interest grows while you're in school:</strong></p>

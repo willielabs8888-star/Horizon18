@@ -33,6 +33,8 @@ def run_projection(scenario: Scenario) -> SimResult:
     total_interest_paid = 0.0
     cumulative_earnings = 0.0
     cumulative_taxes = 0.0
+    loan_payment_was_capped = False  # Track if payments ever exceeded disposable income
+    repayment_start_year = None      # Track when repayment began
 
     ed = scenario.education
     career = scenario.career
@@ -99,17 +101,36 @@ def run_projection(scenario: Scenario) -> SimResult:
                 # Repayment phase
                 if not loan_payments_started:
                     loan_payments_started = True
+                    repayment_start_year = year
                     monthly_payment = calculate_monthly_payment(
                         debt, ed.loan_interest_rate, ed.loan_term_years,
                     )
 
+                # Calculate what the amortization schedule requires
                 new_balance, interest, principal = amortize_year(
                     debt, ed.loan_interest_rate, monthly_payment,
                 )
                 loan_payment = interest + principal
                 interest_this_year = interest
-                total_interest_paid += interest
-                debt = new_balance
+
+                # --- LOAN FEASIBILITY CAP ---
+                # Loan payments cannot exceed what the borrower can actually
+                # afford. If the required payment exceeds disposable income
+                # (net income minus living expenses), cap the payment and let
+                # the loan extend.
+                max_affordable = max(0.0, net_income - expenses)
+                if loan_payment > max_affordable and max_affordable >= 0:
+                    loan_payment_was_capped = True
+                    # Pay only what's affordable
+                    loan_payment = max_affordable
+                    # Recalculate: interest still accrues, but less principal is paid
+                    interest_this_year = debt * ed.loan_interest_rate
+                    principal_paid = max(0.0, loan_payment - interest_this_year)
+                    debt = debt + interest_this_year - principal_paid
+                else:
+                    debt = new_balance
+
+                total_interest_paid += interest_this_year
 
         # --- SAVINGS + INVESTMENT ---
         # Savings rate = % of disposable income (what's left after expenses
@@ -158,8 +179,23 @@ def run_projection(scenario: Scenario) -> SimResult:
         projection_years=scenario.projection_years,
     )
 
+    # Calculate actual loan payoff duration
+    loan_term_actual = 0
+    if repayment_start_year is not None:
+        # Find when debt hit 0 (or if it never did within projection window)
+        for snap in snapshots:
+            if snap.year >= repayment_start_year and snap.debt_remaining <= 0:
+                loan_term_actual = snap.year - repayment_start_year
+                break
+        else:
+            # Debt not paid off within projection window
+            loan_term_actual = scenario.projection_years - repayment_start_year
+
     return SimResult(
         scenario=scenario,
         snapshots=snapshots,
+        loan_extended=loan_payment_was_capped,
+        loan_term_original=ed.loan_term_years,
+        loan_term_actual=loan_term_actual,
         **metrics,
     )

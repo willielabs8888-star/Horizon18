@@ -229,9 +229,24 @@ function instanceLabel(inst, allInstances) {
   const num = sameType.length > 1 ? ` #${idx >= 0 ? idx + 1 : 1}` : "";
   const base = PATH_LABELS[inst.path_type] || inst.path_type;
 
-  // Include specific field (major, trade, industry) for clarity
+  // Include school name, major, trade, or industry for clarity
   let specific = "";
-  if (inst.path_type === "college" && inst.major) specific = ` – ${fmtEnum(inst.major)}`;else if (inst.path_type === "cc_transfer" && inst.major) specific = ` – ${fmtEnum(inst.major)}`;else if (inst.path_type === "trade" && inst.trade_type) specific = ` – ${fmtEnum(inst.trade_type)}`;else if (inst.path_type === "workforce" && inst.industry) specific = ` – ${fmtEnum(inst.industry)}`;else if (inst.path_type === "military") specific = inst.use_gi_bill ? ` – GI Bill (${fmtEnum(inst.gi_bill_major) || "Undecided"})` : " – Civilian";
+  if (inst.path_type === "college") {
+    const school = inst._selected_school ? inst._selected_school.name : null;
+    const major = inst.major ? fmtEnum(inst.major) : null;
+    specific = " – " + [major, school].filter(Boolean).join(" – ") || "";
+  } else if (inst.path_type === "cc_transfer") {
+    const cc = inst._selected_cc ? inst._selected_cc.name : "Community College";
+    const transfer = inst._selected_transfer ? inst._selected_transfer.name : LABEL_MAP[inst.transfer_university_type];
+    const major = inst.major ? fmtEnum(inst.major) : null;
+    specific = " – " + [major, cc + " → " + (transfer || "Transfer")].filter(Boolean).join(" – ");
+  } else if (inst.path_type === "trade" && inst.trade_type) {
+    specific = ` – ${fmtEnum(inst.trade_type)}`;
+  } else if (inst.path_type === "workforce" && inst.industry) {
+    specific = ` – ${fmtEnum(inst.industry)}`;
+  } else if (inst.path_type === "military") {
+    specific = inst.use_gi_bill ? ` – GI Bill (${fmtEnum(inst.gi_bill_major) || "Undecided"})` : " – Civilian";
+  }
   return `${base}${specific}${num}`;
 }
 
@@ -2381,7 +2396,29 @@ function ResultsPage({
         color: "var(--text-dim)",
         fontSize: 12
       }
-    }, " Peak annual loan payment as % of take-home pay. Under 10% is comfortable; over 15% can be a strain.")), /*#__PURE__*/React.createElement("p", {
+    }, " Peak annual loan payment as % of take-home pay. Under 10% is comfortable; over 15% can be a strain.")), sorted.filter(r => r.summary.loan_extended).length > 0 && /*#__PURE__*/React.createElement("p", {
+      style: {
+        marginBottom: 12,
+        padding: "10px 14px",
+        background: "rgba(245,158,11,0.08)",
+        border: "1px solid rgba(245,158,11,0.25)",
+        borderRadius: 8,
+        fontSize: 13
+      }
+    }, /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: "#f59e0b"
+      }
+    }, "Loan repayment adjusted:"), " ", sorted.filter(r => r.summary.loan_extended).map(r => {
+      const rid = r.scenario.instance_id || r.scenario.path_type;
+      const orig = r.summary.loan_term_original;
+      const actual = r.summary.loan_term_actual;
+      return `${labelMap[rid]}: selected ${orig}-year repayment, but income-based payments extend it to ~${actual} years`;
+    }).join("; "), ".", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "var(--text-dim)"
+      }
+    }, "Loan payments are capped at what you can afford after living expenses. The remaining balance continues accruing interest.")), /*#__PURE__*/React.createElement("p", {
       style: {
         color: "var(--text-dim)",
         fontStyle: "italic",
@@ -2788,7 +2825,9 @@ function HowItWorks() {
     className: "hiw-formula"
   }, "Net Income = Gross Income \xD7 (1 \u2212 Tax Rate)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: $60,000 gross \xD7 (1 \u2212 0.18) = $49,200 take-home", /*#__PURE__*/React.createElement("br", null), "Default tax rate: 18% (simplified flat rate)"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83C\uDFE6 Student Loan Payments:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Standard Amortization Formula:", /*#__PURE__*/React.createElement("br", null), "Monthly Payment = P \xD7 [r(1+r)^n] / [(1+r)^n \u2212 1]", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Don't worry if that looks scary! Here's what the letters mean:", /*#__PURE__*/React.createElement("br", null), "P = your total loan balance when payments start", /*#__PURE__*/React.createElement("br", null), "r = monthly interest rate (6.5% annual \xF7 12 months = 0.542%)", /*#__PURE__*/React.createElement("br", null), "n = total number of monthly payments (10 years \xD7 12 = 120 payments)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: $83,884 loan at 6.5% for 10 years", /*#__PURE__*/React.createElement("br", null), "Monthly payment \u2248 $953", /*#__PURE__*/React.createElement("br", null), "Total paid over 10 years \u2248 $114,360", /*#__PURE__*/React.createElement("br", null), "Total interest \u2248 $30,476"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\u26A0\uFE0F Interest grows while you're in school:")), /*#__PURE__*/React.createElement("div", {
+  }, "Standard Amortization Formula:", /*#__PURE__*/React.createElement("br", null), "Monthly Payment = P \xD7 [r(1+r)^n] / [(1+r)^n \u2212 1]", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Don't worry if that looks scary! Here's what the letters mean:", /*#__PURE__*/React.createElement("br", null), "P = your total loan balance when payments start", /*#__PURE__*/React.createElement("br", null), "r = monthly interest rate (6.5% annual \xF7 12 months = 0.542%)", /*#__PURE__*/React.createElement("br", null), "n = total number of monthly payments (10 years \xD7 12 = 120 payments)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: $83,884 loan at 6.5% for 10 years", /*#__PURE__*/React.createElement("br", null), "Monthly payment \u2248 $953", /*#__PURE__*/React.createElement("br", null), "Total paid over 10 years \u2248 $114,360", /*#__PURE__*/React.createElement("br", null), "Total interest \u2248 $30,476"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\u26A0\uFE0F Loan payments are capped at what you can afford:")), /*#__PURE__*/React.createElement("div", {
+    className: "hiw-formula"
+  }, "Actual Payment = min(Required Payment, Net Income \u2212 Living Expenses)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "If your income minus expenses is less than the required monthly payment,", /*#__PURE__*/React.createElement("br", null), "the simulation only pays what you can actually afford.", /*#__PURE__*/React.createElement("br", null), "The remaining balance continues accruing interest, and your loan takes", /*#__PURE__*/React.createElement("br", null), "longer to pay off than the originally selected term.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Required payment = $953/month ($11,436/year)", /*#__PURE__*/React.createElement("br", null), "But disposable income = $8,000/year", /*#__PURE__*/React.createElement("br", null), "\u2192 You pay $8,000. The shortfall stays on the loan with interest."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\u26A0\uFE0F Interest grows while you're in school:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Each year in school: Balance = Balance \xD7 (1 + 0.065)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Borrow $83,884 freshman year", /*#__PURE__*/React.createElement("br", null), "After 4 years of accrual: $83,884 \xD7 1.065^4 \u2248 $107,870", /*#__PURE__*/React.createElement("br", null), "That's $23,986 in interest before you make a single payment!"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCC8 Investment Growth (compound interest):")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"

@@ -162,8 +162,8 @@ def _validate_financial_overrides(body: dict) -> dict | None:
 
     if investment_return_rate is not None:
         ir = float(investment_return_rate)
-        if ir < 0.03 or ir > 0.10:
-            return {"status": 422, "body": {"error": "investment_return_rate must be between 0.03 and 0.10."}}
+        if ir < 0.0 or ir > 0.20:
+            return {"status": 422, "body": {"error": "investment_return_rate must be between 0 and 0.20."}}
 
     if tax_rate is not None:
         tr = float(tax_rate)
@@ -439,6 +439,9 @@ def _serialize_result(result: SimResult) -> dict:
             "net_worth_at_38": result.net_worth_at_38,
             "net_worth_at_50": result.net_worth_at_50,
             "debt_burden_ratio": result.debt_burden_ratio,
+            "loan_extended": result.loan_extended,
+            "loan_term_original": result.loan_term_original,
+            "loan_term_actual": result.loan_term_actual,
         },
     }
 
