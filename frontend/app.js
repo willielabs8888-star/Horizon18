@@ -2679,7 +2679,7 @@ function ResultsPage({
     }
   }, "Failed to save. Please try again.")), /*#__PURE__*/React.createElement(HowItWorks, null), /*#__PURE__*/React.createElement("div", {
     className: "footer"
-  }, "Horizon18 \u2014 For educational purposes only. This tool does not provide financial advice.", /*#__PURE__*/React.createElement("br", null), "All figures are in today's dollars (inflation is not modeled). Projections use simplified assumptions and generalized data sources (BLS, College Scorecard, NACE, DFAS).", /*#__PURE__*/React.createElement("br", null), "Savings rate is applied to disposable income (what's left after expenses and loan payments)."));
+  }, "Horizon18 \u2014 For educational purposes only. This tool does not provide financial advice.", /*#__PURE__*/React.createElement("br", null), "Living expenses grow at 3% annually to reflect inflation. Income and investment returns are not inflation-adjusted.", /*#__PURE__*/React.createElement("br", null), "Projections use simplified assumptions and generalized data sources (BLS, College Scorecard, NACE, DFAS)."));
 }
 
 // ============================================================
@@ -3486,12 +3486,7 @@ function App() {
       lineHeight: 1.6,
       marginBottom: 16
     }
-  }, "College isn't the only path. Compare your options \u2014 with real numbers."), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-dim)",
-      fontSize: 13
-    }
-  }, "Free. No signup. No ads.")), page === "quiz" && /*#__PURE__*/React.createElement(QuizPage, {
+  }, "College isn't the only path. Compare your options \u2014 with real numbers.")), page === "quiz" && /*#__PURE__*/React.createElement(QuizPage, {
     onComplete: handleQuizComplete
   }), page === "results" && /*#__PURE__*/React.createElement(ResultsPage, {
     quiz: quizData,

@@ -1859,9 +1859,8 @@
 
           <div className="footer">
             Horizon18 — For educational purposes only. This tool does not provide financial advice.
-            <br />All figures are in today's dollars (inflation is not modeled). Projections use simplified assumptions
-            and generalized data sources (BLS, College Scorecard, NACE, DFAS).
-            <br />Savings rate is applied to disposable income (what's left after expenses and loan payments).
+            <br />Living expenses grow at 3% annually to reflect inflation. Income and investment returns are not inflation-adjusted.
+            <br />Projections use simplified assumptions and generalized data sources (BLS, College Scorecard, NACE, DFAS).
           </div>
         </div>
       );
@@ -2556,9 +2555,6 @@
             <div style={{maxWidth: 640, margin: "0 auto 24px", textAlign: "center"}}>
               <p style={{color: "var(--text)", fontSize: 16, lineHeight: 1.6, marginBottom: 16}}>
                 College isn't the only path. Compare your options — with real numbers.
-              </p>
-              <p style={{color: "var(--text-dim)", fontSize: 13}}>
-                Free. No signup. No ads.
               </p>
             </div>
           )}
