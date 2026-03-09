@@ -650,6 +650,7 @@ function buildChartData(results) {
       row[id + "_annual_save"] = Math.round(s.annual_savings);
       row[id + "_cum_tax"] = Math.round(s.cumulative_taxes);
       row[id + "_cashflow"] = Math.round(s.net_income - s.living_expenses - s.loan_payment);
+      row[id + "_consumer_debt"] = Math.round(s.consumer_debt || 0);
     }
     rows.push(row);
   }
@@ -1878,9 +1879,15 @@ const CHART_TABS = [{
   suffix: null
 }, {
   key: "debt",
-  label: "Debt",
+  label: "Student Debt",
   title: "Student Debt Over Time",
   subtitle: "Outstanding student loan balance (paths with no debt are hidden)",
+  suffix: null
+}, {
+  key: "consumer_debt",
+  label: "Consumer Debt",
+  title: "Consumer Debt Over Time",
+  subtitle: "Deficit debt from years when income doesn't cover expenses — accrues ~15.5% annual interest",
   suffix: null
 }, {
   key: "invest",
@@ -2028,11 +2035,15 @@ function ResultsPage({
   const endAge = startAge + projYears - 1;
   const tab = CHART_TABS.find(t => t.key === activeTab);
 
-  // Filter out zero-debt instances for the debt chart
+  // Filter out zero-debt instances for debt charts
   const filteredResults = activeTab === "debt" ? (() => {
     const debtResults = results.filter(r => r.snapshots.some(s => s.debt_remaining > 0));
     if (debtResults.length === 0) return null;
     return debtResults;
+  })() : activeTab === "consumer_debt" ? (() => {
+    const cdResults = results.filter(r => r.snapshots.some(s => (s.consumer_debt || 0) > 0));
+    if (cdResults.length === 0) return null;
+    return cdResults;
   })() : results;
 
   // Preserve user-selected order (no sorting by net worth)
@@ -2359,13 +2370,13 @@ function ResultsPage({
     onClick: () => setActiveTab(t.key)
   }, t.label))), /*#__PURE__*/React.createElement("h2", null, tab.title), /*#__PURE__*/React.createElement("p", {
     className: "subtitle"
-  }, tab.subtitle), activeTab === "debt" && !filteredResults ? /*#__PURE__*/React.createElement("p", {
+  }, tab.subtitle), (activeTab === "debt" || activeTab === "consumer_debt") && !filteredResults ? /*#__PURE__*/React.createElement("p", {
     style: {
       color: "var(--text-dim)",
       padding: "40px 0",
       textAlign: "center"
     }
-  }, "No paths in this comparison carry student debt.") : /*#__PURE__*/React.createElement(SimChart, {
+  }, activeTab === "debt" ? "No paths in this comparison carry student debt." : "No paths in this comparison accumulated consumer debt.") : /*#__PURE__*/React.createElement(SimChart, {
     data: chartData,
     results: filteredResults || results,
     dataKeySuffix: activeTab,
@@ -2476,7 +2487,7 @@ function ResultsPage({
         style: {
           color: "var(--text-dim)"
         }
-      }, "Income does not cover living expenses during these years. The model draws down savings or accumulates debt to cover the gap."));
+      }, "Income does not cover living expenses during these years. The model draws down investments first, then accumulates consumer debt (~15.5% interest) to cover the gap."));
     })(), /*#__PURE__*/React.createElement("p", {
       style: {
         color: "var(--text-dim)",
@@ -2566,7 +2577,7 @@ function ResultsPage({
         position: "sticky",
         top: 0
       }
-    }, ["Year", "Age", "Gross Income", "Net Income", "Expenses", "Loan Payment", "Debt", "Savings", "Investments", "Net Worth"].map(h => /*#__PURE__*/React.createElement("th", {
+    }, ["Year", "Age", "Gross Income", "Net Income", "Expenses", "Loan Pmt", "Student Debt", "Consumer Debt", "Savings", "Investments", "Net Worth"].map(h => /*#__PURE__*/React.createElement("th", {
       key: h,
       style: {
         padding: "8px 10px",
@@ -2621,6 +2632,12 @@ function ResultsPage({
         color: s.debt_remaining > 0 ? "#f87171" : "var(--text-dim)"
       }
     }, fmtFull(s.debt_remaining)), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: "6px 10px",
+        textAlign: "right",
+        color: (s.consumer_debt || 0) > 0 ? "#fb923c" : "var(--text-dim)"
+      }
+    }, fmtFull(s.consumer_debt || 0)), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "6px 10px",
         textAlign: "right",
@@ -2892,9 +2909,11 @@ function HowItWorks() {
     className: "hiw-formula"
   }, "Each year: Investments = (Previous Balance \xD7 1.06) + New Savings", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Default return rate: 6% per year (real, after inflation)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Save $5,000/year for 30 years at 6% real", /*#__PURE__*/React.createElement("br", null), "Total contributed: $150,000", /*#__PURE__*/React.createElement("br", null), "Final balance: ~$395,000 in today's dollars (compound interest earned you $245,000!)"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCB5 How much you save each year:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Annual Savings = max(0, (Net Income \u2212 Living Expenses \u2212 Loan Payment) \xD7 Savings Rate)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "The 'Realized Savings Rate' chart shows what percentage of income was actually saved \u2014 which may be lower than your target if expenses and loan payments are high."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCCA Net Worth (the bottom line):")), /*#__PURE__*/React.createElement("div", {
+  }, "Annual Savings = max(0, (Net Income \u2212 Living Expenses \u2212 Loan Payment) \xD7 Savings Rate)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "The 'Realized Savings Rate' chart shows what percentage of income was actually saved \u2014 which may be lower than your target if expenses and loan payments are high."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCB3 Consumer Debt (deficit spending):")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Net Worth = Investment Balance \u2212 Remaining Debt", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "This is the single number that captures everything:", /*#__PURE__*/React.createElement("br", null), "what you've built up minus what you still owe."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83C\uDF0E Metro-area-based adjustments:")), /*#__PURE__*/React.createElement("div", {
+  }, "If your expenses + loan payments exceed your income, you run a deficit.", /*#__PURE__*/React.createElement("br", null), "The simulation draws down investments first. If investments hit $0,", /*#__PURE__*/React.createElement("br", null), "the remaining deficit becomes consumer debt (think credit cards).", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Consumer debt accrues ~15.5% annual interest (real rate).", /*#__PURE__*/React.createElement("br", null), "When you return to positive cashflow, consumer debt is paid down before saving.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "This is tracked separately from student loans \u2014 you can see both", /*#__PURE__*/React.createElement("br", null), "in the Year-by-Year table and the Consumer Debt chart tab."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCCA Net Worth (the bottom line):")), /*#__PURE__*/React.createElement("div", {
+    className: "hiw-formula"
+  }, "Net Worth = Investment Balance \u2212 Student Debt \u2212 Consumer Debt", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "This is the single number that captures everything:", /*#__PURE__*/React.createElement("br", null), "what you've built up minus what you still owe."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83C\uDF0E Metro-area-based adjustments:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Salary = Base Salary \xD7 Metro Area Multiplier", /*#__PURE__*/React.createElement("br", null), "Expenses = Base Expenses \xD7 Metro Area Multiplier", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Northeast: Salary \xD71.15, Expenses \xD71.25 (pays more, costs more)", /*#__PURE__*/React.createElement("br", null), "Southeast: Salary \xD70.90, Expenses \xD70.87 (lower pay, lower cost)", /*#__PURE__*/React.createElement("br", null), "Midwest:   Salary \xD70.95, Expenses \xD70.90", /*#__PURE__*/React.createElement("br", null), "Southwest: Salary \xD70.97, Expenses \xD70.95", /*#__PURE__*/React.createElement("br", null), "West Coast: Salary \xD71.12, Expenses \xD71.15", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Living Expenses Base: Independent living ~$2,200/month. Living at home ~$800/month. Both adjusted by metro area cost-of-living multiplier."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83C\uDFE0 Living Expenses:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"

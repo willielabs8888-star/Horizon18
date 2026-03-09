@@ -314,6 +314,7 @@ class YearSnapshot:
 
     # Loan feasibility (default = 0 so existing code doesn't break)
     loan_payment_required: float = 0.0  # Pre-cap payment (what amortization demands)
+    consumer_debt: float = 0.0          # Accumulated deficit debt (separate from student loans)
 
 
 @dataclass

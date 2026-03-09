@@ -13,6 +13,7 @@ from __future__ import annotations
 from model.data_models import Scenario, YearSnapshot, SimResult
 from model.loan import calculate_monthly_payment, accrue_interest, amortize_year
 from model.metrics import compute_summary_metrics
+from defaults import CONSUMER_DEBT_INTEREST_RATE
 
 
 def run_projection(scenario: Scenario) -> SimResult:
@@ -26,7 +27,8 @@ def run_projection(scenario: Scenario) -> SimResult:
     """
 
     snapshots: list[YearSnapshot] = []
-    debt = 0.0  # Loans are disbursed gradually during school, not front-loaded
+    student_debt = 0.0        # Student loans (from education costs)
+    consumer_debt = 0.0       # Deficit debt (from negative cashflow)
     investment_balance = 0.0
     monthly_payment = 0.0
     loan_payments_started = False
@@ -57,13 +59,13 @@ def run_projection(scenario: Scenario) -> SimResult:
         age = scenario.start_age + year
 
         # --- LOAN DISBURSEMENT (during school years) ---
-        # Each year of school, that year's costs are added to the debt
+        # Each year of school, that year's costs are added to the student debt
         if year < school_years:
             year_cost = ed.annual_tuition[year] + ed.annual_room_and_board[year]
             # Apply family savings proportionally: spread across school years
             year_savings_share = family_savings_total / school_years if school_years > 0 else 0
             year_borrowed = max(0.0, year_cost - year_savings_share)
-            debt += year_borrowed
+            student_debt += year_borrowed
 
         # --- INCOME (read from career engine) ---
         gross_income = career.annual_income[year]
@@ -77,25 +79,30 @@ def run_projection(scenario: Scenario) -> SimResult:
         # --- EXPENSES (read from living engine) ---
         expenses = living.annual_expenses[year]
 
-        # --- LOAN HANDLING ---
+        # --- CONSUMER DEBT INTEREST ---
+        # Consumer debt accrues interest each year (credit card rates)
+        if consumer_debt > 0:
+            consumer_debt *= (1 + CONSUMER_DEBT_INTEREST_RATE)
+
+        # --- STUDENT LOAN HANDLING ---
         loan_payment = 0.0
         loan_payment_required = 0.0  # What amortization demands (before any cap)
         interest_this_year = 0.0
 
-        if debt > 0:
+        if student_debt > 0:
             school_done_year = ed.years_in_school
             grace_done_year = ed.years_in_school + (ed.grace_period_months / 12)
 
             if year < school_done_year:
                 # During school/service: interest accrues (unsubsidized)
-                interest_this_year = debt * ed.loan_interest_rate
-                debt += interest_this_year
+                interest_this_year = student_debt * ed.loan_interest_rate
+                student_debt += interest_this_year
                 total_interest_paid += interest_this_year
 
             elif year < grace_done_year:
                 # Grace period: interest accrues, no payments
-                interest_this_year = debt * ed.loan_interest_rate
-                debt += interest_this_year
+                interest_this_year = student_debt * ed.loan_interest_rate
+                student_debt += interest_this_year
                 total_interest_paid += interest_this_year
 
             else:
@@ -104,12 +111,12 @@ def run_projection(scenario: Scenario) -> SimResult:
                     loan_payments_started = True
                     repayment_start_year = year
                     monthly_payment = calculate_monthly_payment(
-                        debt, ed.loan_interest_rate, ed.loan_term_years,
+                        student_debt, ed.loan_interest_rate, ed.loan_term_years,
                     )
 
                 # Calculate what the amortization schedule requires
                 new_balance, interest, principal = amortize_year(
-                    debt, ed.loan_interest_rate, monthly_payment,
+                    student_debt, ed.loan_interest_rate, monthly_payment,
                 )
                 loan_payment = interest + principal
                 loan_payment_required = loan_payment  # Save pre-cap value
@@ -126,11 +133,11 @@ def run_projection(scenario: Scenario) -> SimResult:
                     # Pay only what's affordable
                     loan_payment = max_affordable
                     # Recalculate: interest still accrues, but less principal is paid
-                    interest_this_year = debt * ed.loan_interest_rate
+                    interest_this_year = student_debt * ed.loan_interest_rate
                     principal_paid = max(0.0, loan_payment - interest_this_year)
-                    debt = debt + interest_this_year - principal_paid
+                    student_debt = student_debt + interest_this_year - principal_paid
                 else:
-                    debt = new_balance
+                    student_debt = new_balance
 
                 total_interest_paid += interest_this_year
 
@@ -141,6 +148,13 @@ def run_projection(scenario: Scenario) -> SimResult:
         if disposable >= 0:
             # Positive cashflow: save a portion, grow investments
             new_savings = disposable * scenario.savings_rate
+
+            # If there's consumer debt, pay it down before saving
+            if consumer_debt > 0 and new_savings > 0:
+                paydown = min(consumer_debt, new_savings)
+                consumer_debt -= paydown
+                new_savings -= paydown
+
             investment_balance = (
                 investment_balance * (1 + scenario.investment_return_rate)
                 + new_savings
@@ -160,10 +174,11 @@ def run_projection(scenario: Scenario) -> SimResult:
                 # Investments can't cover it — remainder becomes consumer debt
                 remaining_deficit = deficit - investment_balance
                 investment_balance = 0.0
-                debt += remaining_deficit
+                consumer_debt += remaining_deficit
 
         # --- NET WORTH ---
-        net_worth = investment_balance - debt
+        total_debt = student_debt + consumer_debt
+        net_worth = investment_balance - total_debt
 
         # --- CUMULATIVE TRACKING ---
         taxes_this_year = gross_income - net_income
@@ -179,13 +194,14 @@ def run_projection(scenario: Scenario) -> SimResult:
             living_expenses=round(expenses, 2),
             loan_payment=round(loan_payment, 2),
             loan_payment_required=round(loan_payment_required, 2),
-            debt_remaining=round(max(0.0, debt), 2),
+            debt_remaining=round(max(0.0, student_debt), 2),
             annual_savings=round(new_savings, 2),
             investment_balance=round(investment_balance, 2),
             net_worth=round(net_worth, 2),
             cumulative_earnings=round(cumulative_earnings, 2),
             cumulative_taxes=round(cumulative_taxes, 2),
             savings_rate_actual=round(actual_savings_rate, 4),
+            consumer_debt=round(max(0.0, consumer_debt), 2),
         ))
 
     # Compute summary metrics

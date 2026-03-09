@@ -498,6 +498,7 @@
           row[id+"_annual_save"] = Math.round(s.annual_savings);
           row[id+"_cum_tax"] = Math.round(s.cumulative_taxes);
           row[id+"_cashflow"] = Math.round(s.net_income - s.living_expenses - s.loan_payment);
+          row[id+"_consumer_debt"] = Math.round(s.consumer_debt || 0);
         }
         rows.push(row);
       }
@@ -1400,7 +1401,8 @@
       { key: "nw", label: "Net Worth", title: "Net Worth Over Time", subtitle: "Investments minus debt — the bottom line", suffix: null },
       { key: "income", label: "Income", title: "Annual Income", subtitle: "Gross income each year (part-time, apprentice wages, military pay, salary)", suffix: null },
       { key: "cum_earn", label: "Cumulative Earnings", title: "Cumulative Earnings", subtitle: "Total gross income earned through each age", suffix: null },
-      { key: "debt", label: "Debt", title: "Student Debt Over Time", subtitle: "Outstanding student loan balance (paths with no debt are hidden)", suffix: null },
+      { key: "debt", label: "Student Debt", title: "Student Debt Over Time", subtitle: "Outstanding student loan balance (paths with no debt are hidden)", suffix: null },
+      { key: "consumer_debt", label: "Consumer Debt", title: "Consumer Debt Over Time", subtitle: "Deficit debt from years when income doesn't cover expenses — accrues ~15.5% annual interest", suffix: null },
       { key: "invest", label: "Investments", title: "Investment Growth", subtitle: "Savings compounding at the configured annual return rate", suffix: null },
       { key: "savings", label: "Realized Savings Rate", title: "Realized Savings Rate", subtitle: "Percentage of income actually saved after taxes, expenses, and loan payments", suffix: "%" },
       { key: "loan_pay", label: "Loan Payments", title: "Annual Loan Payments", subtitle: "Amount paid toward student loans each year", suffix: null },
@@ -1513,7 +1515,7 @@
       const endAge = startAge + projYears - 1;
       const tab = CHART_TABS.find(t => t.key === activeTab);
 
-      // Filter out zero-debt instances for the debt chart
+      // Filter out zero-debt instances for debt charts
       const filteredResults = activeTab === "debt"
         ? (() => {
             const debtResults = results.filter(r =>
@@ -1521,6 +1523,14 @@
             );
             if (debtResults.length === 0) return null;
             return debtResults;
+          })()
+        : activeTab === "consumer_debt"
+        ? (() => {
+            const cdResults = results.filter(r =>
+              r.snapshots.some(s => (s.consumer_debt || 0) > 0)
+            );
+            if (cdResults.length === 0) return null;
+            return cdResults;
           })()
         : results;
 
@@ -1661,9 +1671,11 @@
             <h2>{tab.title}</h2>
             <p className="subtitle">{tab.subtitle}</p>
 
-            {activeTab === "debt" && !filteredResults ? (
+            {(activeTab === "debt" || activeTab === "consumer_debt") && !filteredResults ? (
               <p style={{color:"var(--text-dim)", padding:"40px 0", textAlign:"center"}}>
-                No paths in this comparison carry student debt.
+                {activeTab === "debt"
+                  ? "No paths in this comparison carry student debt."
+                  : "No paths in this comparison accumulated consumer debt."}
               </p>
             ) : (
               <SimChart
@@ -1758,7 +1770,7 @@
                             const deficitYears = r.snapshots.filter(s => s.net_income - s.living_expenses - s.loan_payment < 0).length;
                             return `${labelMap[rid]} (${deficitYears} year${deficitYears > 1 ? "s" : ""})`;
                           }).join("; ")}.
-                          <br /><span style={{color: "var(--text-dim)"}}>Income does not cover living expenses during these years. The model draws down savings or accumulates debt to cover the gap.</span>
+                          <br /><span style={{color: "var(--text-dim)"}}>Income does not cover living expenses during these years. The model draws down investments first, then accumulates consumer debt (~15.5% interest) to cover the gap.</span>
                         </p>
                       );
                     })()}
@@ -1817,7 +1829,7 @@
                         <table style={{width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 900}}>
                           <thead>
                             <tr style={{background: "var(--bg)", position: "sticky", top: 0}}>
-                              {["Year","Age","Gross Income","Net Income","Expenses","Loan Payment","Debt","Savings","Investments","Net Worth"].map(h => (
+                              {["Year","Age","Gross Income","Net Income","Expenses","Loan Pmt","Student Debt","Consumer Debt","Savings","Investments","Net Worth"].map(h => (
                                 <th key={h} style={{padding: "8px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "var(--text-dim)", fontWeight: 600, whiteSpace: "nowrap"}}>
                                   {h}
                                 </th>
@@ -1834,6 +1846,7 @@
                                 <td style={{padding: "6px 10px", textAlign: "right", color: "#f87171"}}>{fmtFull(s.living_expenses)}</td>
                                 <td style={{padding: "6px 10px", textAlign: "right", color: s.loan_payment > 0 ? "#fbbf24" : "var(--text-dim)"}}>{fmtFull(s.loan_payment)}</td>
                                 <td style={{padding: "6px 10px", textAlign: "right", color: s.debt_remaining > 0 ? "#f87171" : "var(--text-dim)"}}>{fmtFull(s.debt_remaining)}</td>
+                                <td style={{padding: "6px 10px", textAlign: "right", color: (s.consumer_debt || 0) > 0 ? "#fb923c" : "var(--text-dim)"}}>{fmtFull(s.consumer_debt || 0)}</td>
                                 <td style={{padding: "6px 10px", textAlign: "right", color: "#60a5fa"}}>{fmtFull(s.annual_savings)}</td>
                                 <td style={{padding: "6px 10px", textAlign: "right", color: "#a78bfa"}}>{fmtFull(s.investment_balance)}</td>
                                 <td style={{padding: "6px 10px", textAlign: "right", fontWeight: 600, color: s.net_worth >= 0 ? "#4ade80" : "#f87171"}}>{fmtFull(s.net_worth)}</td>
@@ -2170,9 +2183,20 @@
                   The 'Realized Savings Rate' chart shows what percentage of income was actually saved — which may be lower than your target if expenses and loan payments are high.
                 </div>
 
+                <p><strong>💳 Consumer Debt (deficit spending):</strong></p>
+                <div className="hiw-formula">
+                  If your expenses + loan payments exceed your income, you run a deficit.<br/>
+                  The simulation draws down investments first. If investments hit $0,<br/>
+                  the remaining deficit becomes consumer debt (think credit cards).<br/><br/>
+                  Consumer debt accrues ~15.5% annual interest (real rate).<br/>
+                  When you return to positive cashflow, consumer debt is paid down before saving.<br/><br/>
+                  This is tracked separately from student loans — you can see both<br/>
+                  in the Year-by-Year table and the Consumer Debt chart tab.
+                </div>
+
                 <p><strong>📊 Net Worth (the bottom line):</strong></p>
                 <div className="hiw-formula">
-                  Net Worth = Investment Balance − Remaining Debt<br/><br/>
+                  Net Worth = Investment Balance − Student Debt − Consumer Debt<br/><br/>
                   This is the single number that captures everything:<br/>
                   what you've built up minus what you still owe.
                 </div>

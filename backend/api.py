@@ -463,4 +463,5 @@ def _serialize_snapshot(s: YearSnapshot) -> dict:
         "cumulative_earnings": s.cumulative_earnings,
         "cumulative_taxes": s.cumulative_taxes,
         "savings_rate_actual": s.savings_rate_actual,
+        "consumer_debt": s.consumer_debt,
     }

@@ -21,6 +21,7 @@ LOAN_INTEREST_RATE: float = 0.040       # ~4.0% real rate (nominal ~6.5% minus ~
 LOAN_TERM_YEARS: int = 10              # Default repayment plan (editable by user, 5-30 years)
 GRACE_PERIOD_MONTHS: int = 6           # Post-graduation grace period
 EXPENSE_INFLATION_RATE: float = 0.0    # 0% — expenses are flat in real dollars
+CONSUMER_DEBT_INTEREST_RATE: float = 0.155  # ~15.5% real (nominal ~18% credit card minus ~2.5% inflation)
 
 # Region-based effective tax rate defaults (blended federal + state + payroll)
 # Used by the frontend Advanced Assumptions section to set initial slider value.
