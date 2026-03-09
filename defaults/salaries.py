@@ -52,47 +52,48 @@ STARTING_SALARY: dict[str, float] = {
     "liberal_arts":           40_000,   # → psychology/english avg
 }
 
-# Annual salary growth rate by field
-# Based on BLS 10-year wage growth trends and industry projections
+# Annual REAL salary growth rate by field (inflation-adjusted)
+# Nominal BLS 10-year trends minus ~2.5% CPI inflation.
+# All figures represent real purchasing-power growth.
 SALARY_GROWTH: dict[str, float] = {
     # --- STEM cluster ---
-    "computer_science":       0.045,    # Tech: fast early-career growth
-    "engineering":            0.040,    # Engineering: strong growth
-    "biology":                0.030,    # Bio: moderate, often needs grad degree
-    "environmental_science":  0.030,    # Environmental: growing field, moderate
+    "computer_science":       0.020,    # Tech: strong real growth
+    "engineering":            0.015,    # Engineering: solid real growth
+    "biology":                0.005,    # Bio: minimal real growth, often needs grad degree
+    "environmental_science":  0.005,    # Environmental: growing field, modest real
 
     # --- Health cluster ---
-    "nursing":                0.030,    # Healthcare: steady, shift differentials
-    "kinesiology":            0.025,    # Fitness: slower growth, ceiling
+    "nursing":                0.005,    # Healthcare: steady but tracks inflation
+    "kinesiology":            0.005,    # Fitness: near-flat real growth
 
     # --- Business cluster ---
-    "business_finance":       0.035,    # Business: good corporate ladder
-    "accounting":             0.035,    # Accounting: CPA path accelerates
-    "marketing":              0.030,    # Marketing: moderate growth
+    "business_finance":       0.010,    # Business: good corporate ladder
+    "accounting":             0.010,    # Accounting: CPA path accelerates
+    "marketing":              0.005,    # Marketing: modest real growth
 
     # --- Social science / humanities ---
-    "psychology":             0.025,    # Often needs grad school for advancement
-    "criminal_justice":       0.025,    # Government pay scales
-    "political_science":      0.025,    # Government/nonprofit
-    "communications":         0.030,    # Media/PR: moderate
-    "english":                0.020,    # Humanities: slow growth
-    "social_work":            0.020,    # Social work: low ceiling without MSW
+    "psychology":             0.005,    # Often needs grad school for advancement
+    "criminal_justice":       0.005,    # Government pay scales
+    "political_science":      0.005,    # Government/nonprofit
+    "communications":         0.005,    # Media/PR: modest
+    "english":                0.005,    # Humanities: near-flat real
+    "social_work":            0.005,    # Social work: low ceiling without MSW
 
     # --- Other ---
-    "education":              0.020,    # Teacher pay grows slowly
-    "art_design":             0.025,    # Creative: varies wildly
-    "undecided":              0.030,    # General average
+    "education":              0.005,    # Teacher pay grows slowly
+    "art_design":             0.005,    # Creative: varies wildly
+    "undecided":              0.005,    # General average
 
     # --- Legacy aliases ---
-    "stem":                   0.040,
-    "business":               0.035,
-    "healthcare":             0.030,
-    "liberal_arts":           0.025,
+    "stem":                   0.015,
+    "business":               0.010,
+    "healthcare":             0.005,
+    "liberal_arts":           0.005,
 
     # --- Non-degree paths (used by other engines) ---
-    "trade":                  0.025,    # Post-journeyman growth
-    "workforce":              0.020,    # Entry-level, no credential
-    "military_civilian":      0.030,    # Post-service civilian career
+    "trade":                  0.005,    # Post-journeyman real growth
+    "workforce":              0.005,    # Entry-level, minimal real growth
+    "military_civilian":      0.005,    # Post-service civilian career
 }
 
 # Community college transfer salary discount (applied to starting salary)
