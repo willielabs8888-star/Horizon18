@@ -2242,23 +2242,27 @@
 
                 <p><strong>🌎 Metro-area-based adjustments:</strong></p>
                 <div className="hiw-formula">
-                  Salary = Base Salary × Metro Area Multiplier<br/>
-                  Expenses = Base Expenses × Metro Area Multiplier<br/><br/>
-                  Northeast: Salary ×1.15, Expenses ×1.25 (pays more, costs more)<br/>
-                  Southeast: Salary ×0.90, Expenses ×0.87 (lower pay, lower cost)<br/>
-                  Midwest:   Salary ×0.95, Expenses ×0.90<br/>
-                  Southwest: Salary ×0.97, Expenses ×0.95<br/>
-                  West Coast: Salary ×1.12, Expenses ×1.15<br/><br/>
-                  Living Expenses Base: Independent living ~$2,200/month. Living at home ~$800/month. Both adjusted by metro area cost-of-living multiplier.
+                  Salary = Base Salary × Metro Salary Multiplier<br/>
+                  Expenses = Base Expenses × Metro Cost-of-Living Multiplier<br/><br/>
+                  We have per-city data for 90+ U.S. metro areas (sourced from BEA Regional Price Parities and BLS wage data). Each metro has its own salary and cost-of-living multiplier relative to the national average (1.00).<br/><br/>
+                  Examples:<br/>
+                  New York City:  Salary ×1.13, Expenses ×1.17 (high pay, high cost)<br/>
+                  Dallas-Fort Worth: Salary ×1.01, Expenses ×1.01 (near average)<br/>
+                  Atlanta:        Salary ×0.98, Expenses ×0.98 (slightly below average)<br/>
+                  Seattle:        Salary ×1.10, Expenses ×1.14 (tech-driven premium)<br/>
+                  Chicago:        Salary ×1.02, Expenses ×1.02 (near average)<br/><br/>
+                  If you select "Other / National Average," multipliers are 1.00 (no adjustment).
                 </div>
 
                 <p><strong>🏠 Living Expenses:</strong></p>
                 <div className="hiw-formula">
-                  At home:       $800/month base (before regional multiplier)<br/>
+                  At home:       $800/month base (before metro multiplier)<br/>
                   Independent: $2,200/month base (rent, food, utilities, etc.)<br/><br/>
                   Expenses stay flat because all figures are in today's dollars (inflation-adjusted).<br/><br/>
-                  Example (Midwest, independent):<br/>
-                  $2,200 × 0.90 = $1,980/month = $23,760/year
+                  Example (Chicago, independent):<br/>
+                  $2,200 × 1.02 = $2,244/month = $26,928/year<br/><br/>
+                  Example (Atlanta, independent):<br/>
+                  $2,200 × 0.98 = $2,156/month = $25,872/year
                 </div>
                 <div className="hiw-note">All defaults are adjustable via the Advanced Assumptions sliders above.</div>
               </HiwDropdown>
