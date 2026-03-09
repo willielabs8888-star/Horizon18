@@ -26,6 +26,7 @@ def build_living_profile(
     military_service_years: int = 0,
     military_use_gi_bill: bool = False,
     expense_inflation_rate: float = EXPENSE_INFLATION_RATE,
+    years_in_school: int = 0,
 ) -> LivingProfile:
     """Build a LivingProfile from quiz answers + defaults."""
 
@@ -42,6 +43,9 @@ def build_living_profile(
 
     expenses: list[float] = []
 
+    # Determine if this is a college/CC path (where R&B is already in education costs)
+    is_college_path = path_type in (PathType.COLLEGE, PathType.CC_TRANSFER)
+
     for year in range(projection_years):
         # Apply inflation: year-0 costs are base, each subsequent year grows
         inflation_factor = (1 + expense_inflation_rate) ** year
@@ -55,6 +59,11 @@ def build_living_profile(
                 expenses.append(annual_home * inflation_factor)
             else:
                 expenses.append(annual_indep * inflation_factor)
+        elif is_college_path and year < years_in_school:
+            # During college: room & board is already included in education costs
+            # (and folded into student loans), so living expenses = $0.
+            # If living at home, R&B is lower but still in education costs.
+            expenses.append(0.0)
         elif living_at_home and year < years_at_home:
             expenses.append(annual_home * inflation_factor)
         else:

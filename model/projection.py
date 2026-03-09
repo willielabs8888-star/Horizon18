@@ -171,10 +171,17 @@ def run_projection(scenario: Scenario) -> SimResult:
             if investment_balance >= deficit:
                 investment_balance -= deficit
             else:
-                # Investments can't cover it — remainder becomes consumer debt
+                # Investments can't cover it — remainder becomes debt
                 remaining_deficit = deficit - investment_balance
                 investment_balance = 0.0
-                consumer_debt += remaining_deficit
+
+                if year < school_years:
+                    # During school: shortfalls are covered by student loans
+                    # (students borrow more, not credit cards)
+                    student_debt += remaining_deficit
+                else:
+                    # After school: shortfalls become consumer debt
+                    consumer_debt += remaining_deficit
 
         # --- NET WORTH ---
         total_debt = student_debt + consumer_debt

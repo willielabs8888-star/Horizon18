@@ -73,6 +73,7 @@ def build_scenario(
             if military_answers and path_type == PathType.MILITARY
             else False
         ),
+        years_in_school=education.years_in_school,
     )
 
     # --- Compose ---

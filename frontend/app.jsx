@@ -2258,10 +2258,13 @@
                 <div className="hiw-formula">
                   At home:       $800/month base (before metro multiplier)<br/>
                   Independent: $2,200/month base (rent, food, utilities, etc.)<br/><br/>
+                  <strong>During college:</strong> Living expenses are $0 because room & board is already<br/>
+                  included in your education costs (and folded into student loans).<br/>
+                  After graduation, full independent living expenses kick in.<br/><br/>
                   Expenses stay flat because all figures are in today's dollars (inflation-adjusted).<br/><br/>
-                  Example (Chicago, independent):<br/>
+                  Example (Chicago, independent, post-graduation):<br/>
                   $2,200 × 1.02 = $2,244/month = $26,928/year<br/><br/>
-                  Example (Atlanta, independent):<br/>
+                  Example (Atlanta, independent, post-graduation):<br/>
                   $2,200 × 0.98 = $2,156/month = $25,872/year
                 </div>
                 <div className="hiw-note">All defaults are adjustable via the Advanced Assumptions sliders above.</div>

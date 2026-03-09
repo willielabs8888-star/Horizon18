@@ -53,16 +53,16 @@ def compute_summary_metrics(
     total_rb = sum(education.annual_room_and_board)
     total_cost = total_tuition + total_rb
 
-    # Year debt-free (age when debt hits 0)
+    # Year debt-free (age when ALL debt — student + consumer — hits 0)
     year_debt_free = None
-    had_debt = any(s.debt_remaining > 0 for s in snapshots)
+    had_debt = any(s.debt_remaining > 0 or s.consumer_debt > 0 for s in snapshots)
     if had_debt:
         for s in snapshots:
-            if s.debt_remaining <= 0 and s.year > 0:
+            if s.debt_remaining <= 0 and s.consumer_debt <= 0 and s.year > 0:
                 year_debt_free = s.age
                 break
         # If never paid off within horizon
-        if year_debt_free is None and snapshots[-1].debt_remaining > 0:
+        if year_debt_free is None and (snapshots[-1].debt_remaining > 0 or snapshots[-1].consumer_debt > 0):
             year_debt_free = None  # Still in debt at end
     elif education.total_loan_amount == 0:
         year_debt_free = None  # Never had debt
