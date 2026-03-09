@@ -276,7 +276,7 @@ class TestFinancialDefaults(unittest.TestCase):
         self.assertLess(LOAN_INTEREST_RATE, 0.15)
 
     def test_loan_term(self):
-        self.assertEqual(LOAN_TERM_YEARS, 15)
+        self.assertEqual(LOAN_TERM_YEARS, 10)
 
     def test_grace_period(self):
         self.assertEqual(GRACE_PERIOD_MONTHS, 6)

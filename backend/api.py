@@ -54,10 +54,10 @@ def _build_college_answers(c: dict) -> CollegeAnswers:
         ipeds_id=c.get("ipeds_id"),
         tuition_override=_safe_non_negative_float(c.get("tuition_override")),
         room_board_override=_safe_non_negative_float(c.get("room_board_override")),
-        loan_term_years=_clamp_loan_term(c.get("loan_term_years", 15)),
+        loan_term_years=_clamp_loan_term(c.get("loan_term_years", 10)),
         major=Major(c.get("major", "undecided")),
         part_time_work=c.get("part_time_work", True),
-        part_time_income=max(0.0, float(c.get("part_time_income", 8000))),
+        part_time_income=max(0.0, min(25000.0, float(c.get("part_time_income", 8000)))),
     )
 
 def _build_cc_answers(cc: dict) -> CommunityCollegeAnswers:
@@ -68,10 +68,10 @@ def _build_cc_answers(cc: dict) -> CommunityCollegeAnswers:
         tuition_override_cc=_safe_non_negative_float(cc.get("tuition_override_cc")),
         tuition_override_transfer=_safe_non_negative_float(cc.get("tuition_override_transfer")),
         room_board_override=_safe_non_negative_float(cc.get("room_board_override")),
-        loan_term_years=_clamp_loan_term(cc.get("loan_term_years", 15)),
+        loan_term_years=_clamp_loan_term(cc.get("loan_term_years", 10)),
         major=Major(cc.get("major", "undecided")),
         part_time_work=cc.get("part_time_work", True),
-        part_time_income=max(0.0, float(cc.get("part_time_income", 10000))),
+        part_time_income=max(0.0, min(25000.0, float(cc.get("part_time_income", 10000)))),
     )
 
 def _safe_float(val) -> float | None:
@@ -101,7 +101,7 @@ def _clamp_loan_term(val, default=15) -> int:
 def _build_trade_answers(t: dict) -> TradeAnswers:
     return TradeAnswers(
         trade_type=TradeType(t.get("trade_type", "electrician")),
-        loan_term_years=int(t.get("loan_term_years", 5)),
+        loan_term_years=_clamp_loan_term(t.get("loan_term_years", 5)),
     )
 
 def _build_workforce_answers(w: dict) -> WorkforceAnswers:
@@ -115,8 +115,9 @@ def _build_workforce_answers(w: dict) -> WorkforceAnswers:
     )
 
 def _build_military_answers(m: dict) -> MilitaryAnswers:
+    enlistment = max(2, min(8, int(m.get("enlistment_years", 4))))
     return MilitaryAnswers(
-        enlistment_years=int(m.get("enlistment_years", 4)),
+        enlistment_years=enlistment,
         use_gi_bill=m.get("use_gi_bill", True),
         gi_bill_major=Major(m.get("gi_bill_major", "undecided")),
     )
@@ -265,7 +266,7 @@ def _handle_multi_instance(body: dict, region: Region, projection_years: int) ->
 
             # Get the answer builder for this path type and build answers from instance config
             field_name, builder_fn = _ANSWER_BUILDERS[path_type]
-            config = inst.get(field_name, inst)  # Use nested config if present, else top-level
+            config = inst.get(field_name, inst)  # Use nested config if present, else top-level (frontend sends flat)
             answers = builder_fn(config)
             setattr(quiz, _QUIZ_FIELD_MAP[path_type], answers)
 

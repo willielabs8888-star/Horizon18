@@ -1,0 +1,13 @@
+{
+  "name": "horizon18",
+  "private": true,
+  "description": "Build tools for Horizon18 frontend",
+  "scripts": {
+    "build": "./build.sh"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.26.0",
+    "@babel/core": "^7.26.0",
+    "@babel/preset-react": "^7.26.0"
+  }
+}

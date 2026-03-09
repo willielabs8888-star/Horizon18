@@ -46,36 +46,60 @@ FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
 # ── App setup ──────────────────────────────────────────────────────
 
 app = Flask(__name__, static_folder=None)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# ── Analytics (simple file-based, same as before) ──────────────────
+# CORS: restrict origins via env var (comma-separated). Defaults to localhost for dev.
+# Set ALLOWED_ORIGINS in Railway to your production domain, e.g. "https://horizon18.up.railway.app"
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:8000")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}})
 
-_ANALYTICS_FILE = os.path.join(PROJECT_ROOT, "analytics.json")
+# ── Analytics (database-backed when DB available, silent fallback) ─
 
-
-def _load_analytics():
+def _track_event(event_type: str):
+    """Increment an analytics counter. Uses PostgreSQL if available, otherwise no-op."""
+    if not DATABASE_URL:
+        return
+    from datetime import datetime, timezone
     try:
-        with open(_ANALYTICS_FILE, "r") as f:
-            return json.loads(f.read())
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"page_views": 0, "simulations": 0, "first_seen": None}
-
-
-def _save_analytics(data):
-    try:
-        with open(_ANALYTICS_FILE, "w") as f:
-            f.write(json.dumps(data))
+        from backend.db import get_conn
+        conn = get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """INSERT INTO analytics (event_type, count, first_seen)
+                   VALUES (%s, 1, %s)
+                   ON CONFLICT (event_type) DO UPDATE
+                   SET count = analytics.count + 1""",
+                (event_type, datetime.now(timezone.utc)),
+            )
+            conn.commit()
+        finally:
+            conn.close()
     except Exception:
-        pass
+        pass  # Analytics should never break the app
 
 
-def _track_event(event_type):
-    from datetime import datetime
-    data = _load_analytics()
-    data[event_type] = data.get(event_type, 0) + 1
-    if not data.get("first_seen"):
-        data["first_seen"] = datetime.now().isoformat()
-    _save_analytics(data)
+def _load_analytics() -> dict:
+    """Load analytics counters from the database."""
+    if not DATABASE_URL:
+        return {"page_views": 0, "simulations": 0}
+    try:
+        from backend.db import get_conn
+        conn = get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT event_type, count, first_seen FROM analytics")
+            rows = cur.fetchall()
+            result = {}
+            for row in rows:
+                result[row["event_type"]] = row["count"]
+                if row.get("first_seen"):
+                    result.setdefault("first_seen", row["first_seen"].isoformat())
+            return result
+        finally:
+            conn.close()
+    except Exception:
+        return {"page_views": 0, "simulations": 0}
 
 
 # ══════════════════════════════════════════════════════════════════

@@ -131,7 +131,7 @@ def run_projection(scenario: Scenario) -> SimResult:
         taxes_this_year = gross_income - net_income
         cumulative_earnings += gross_income
         cumulative_taxes += taxes_this_year
-        actual_savings_rate = (new_savings / net_income) if net_income > 0 else 0.0
+        actual_savings_rate = (new_savings / disposable) if disposable > 0 else 0.0
 
         snapshots.append(YearSnapshot(
             year=year,

@@ -1,0 +1,17 @@
+# Nixpacks build config for Railway.
+# Installs Python deps, then Node deps, then compiles JSX → JS.
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "python312", "gcc"]
+
+[phases.install]
+cmds = [
+  "pip install -r requirements.txt",
+  "npm install",
+]
+
+[phases.build]
+cmds = ["./build.sh"]
+
+[start]
+cmd = "gunicorn backend.main:app --bind 0.0.0.0:$PORT"
