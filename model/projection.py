@@ -135,17 +135,32 @@ def run_projection(scenario: Scenario) -> SimResult:
                 total_interest_paid += interest_this_year
 
         # --- SAVINGS + INVESTMENT ---
-        # Savings rate = % of disposable income (what's left after expenses
-        # and loan payments). This ensures higher debt → lower savings,
-        # which correctly differentiates paths with different loan burdens.
+        # Disposable income = what's left after expenses and loan payments.
         disposable = net_income - expenses - loan_payment
-        new_savings = max(0.0, disposable * scenario.savings_rate)
 
-        # Grow existing investments, then add new savings
-        investment_balance = (
-            investment_balance * (1 + scenario.investment_return_rate)
-            + new_savings
-        )
+        if disposable >= 0:
+            # Positive cashflow: save a portion, grow investments
+            new_savings = disposable * scenario.savings_rate
+            investment_balance = (
+                investment_balance * (1 + scenario.investment_return_rate)
+                + new_savings
+            )
+        else:
+            # Negative cashflow: must cover the deficit
+            deficit = abs(disposable)
+            new_savings = 0.0
+
+            # First, grow existing investments (they still earn returns)
+            investment_balance = investment_balance * (1 + scenario.investment_return_rate)
+
+            # Then draw down investments to cover the deficit
+            if investment_balance >= deficit:
+                investment_balance -= deficit
+            else:
+                # Investments can't cover it — remainder becomes consumer debt
+                remaining_deficit = deficit - investment_balance
+                investment_balance = 0.0
+                debt += remaining_deficit
 
         # --- NET WORTH ---
         net_worth = investment_balance - debt

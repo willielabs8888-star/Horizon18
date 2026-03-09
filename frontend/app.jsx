@@ -497,6 +497,7 @@
           row[id+"_loan_pay"] = Math.round(s.loan_payment);
           row[id+"_annual_save"] = Math.round(s.annual_savings);
           row[id+"_cum_tax"] = Math.round(s.cumulative_taxes);
+          row[id+"_cashflow"] = Math.round(s.net_income - s.living_expenses - s.loan_payment);
         }
         rows.push(row);
       }
@@ -1405,6 +1406,7 @@
       { key: "loan_pay", label: "Loan Payments", title: "Annual Loan Payments", subtitle: "Amount paid toward student loans each year", suffix: null },
       { key: "annual_save", label: "Annual Savings", title: "Annual Savings Contribution", subtitle: "New savings contributed each year after all expenses", suffix: null },
       { key: "cum_tax", label: "Taxes Paid", title: "Cumulative Taxes Paid", subtitle: "Total taxes paid through each age", suffix: null },
+      { key: "cashflow", label: "Cash Flow", title: "Annual Cash Flow", subtitle: "Net income minus expenses and loan payments — negative means you're borrowing or drawing down savings", suffix: null },
     ];
 
     function ResultsPage({ quiz, onReset, onSave, saveStatus }) {
@@ -1570,7 +1572,7 @@
                     onChange={e => { const v = parseInt(e.target.value); handleAssumptionChange(setStartAge, v); }}
                     style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
                   <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
-                    Age when you start your post-graduation path (default: 18)
+                    Age when the simulation begins (default: 18)
                   </p>
                 </div>
 
@@ -1743,6 +1745,23 @@
                         <br /><span style={{color: "var(--text-dim)"}}>Loan payments are capped at what you can afford after living expenses. The remaining balance continues accruing interest.</span>
                       </p>
                     )}
+                    {(() => {
+                      const negCashflow = sorted.filter(r =>
+                        r.snapshots.some(s => s.net_income - s.living_expenses - s.loan_payment < 0)
+                      );
+                      if (negCashflow.length === 0) return null;
+                      return (
+                        <p style={{marginBottom: 12, padding: "10px 14px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, fontSize: 13}}>
+                          <strong style={{color: "#ef4444"}}>Negative cashflow detected:</strong>{" "}
+                          {negCashflow.map(r => {
+                            const rid = r.scenario.instance_id || r.scenario.path_type;
+                            const deficitYears = r.snapshots.filter(s => s.net_income - s.living_expenses - s.loan_payment < 0).length;
+                            return `${labelMap[rid]} (${deficitYears} year${deficitYears > 1 ? "s" : ""})`;
+                          }).join("; ")}.
+                          <br /><span style={{color: "var(--text-dim)"}}>Income does not cover living expenses during these years. The model draws down savings or accumulates debt to cover the gap.</span>
+                        </p>
+                      );
+                    })()}
                     <p style={{color: "var(--text-dim)", fontStyle: "italic", marginTop: 16}}>
                       Try adjusting the timeline slider above — shorter horizons (10-15 years) tend to favor paths
                       with no debt, while longer horizons (30+ years) show the compounding advantage of higher salaries.
