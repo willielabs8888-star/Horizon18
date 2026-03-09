@@ -1936,6 +1936,8 @@ function ResultsPage({
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState("");
   const [projYears, setProjYears] = useState(quiz.projection_years || 32);
   const [activeTab, setActiveTab] = useState("nw");
   const sliderTimeout = useRef(null);
@@ -2056,7 +2058,23 @@ function ResultsPage({
     className: "badge active"
   }, LABEL_MAP[quiz.metro_area] || LABEL_MAP[quiz.region] || "National Average"), /*#__PURE__*/React.createElement("span", {
     className: "badge active"
-  }, projYears, "-Year Projection (ages ", startAge, "\u2013", endAge, ")"), /*#__PURE__*/React.createElement("span", {
+  }, projYears, "-Year Projection (ages ", startAge, "\u2013", endAge, ")"), onSave && /*#__PURE__*/React.createElement("span", {
+    className: "badge",
+    style: {
+      cursor: "pointer",
+      borderColor: "var(--accent)",
+      color: "var(--accent)"
+    },
+    onClick: () => {
+      if (saveStatus === "saved") return;
+      // Generate default name: "09 Mar 2026 Sim 01"
+      const d = new Date();
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const dateStr = String(d.getDate()).padStart(2, "0") + " " + months[d.getMonth()] + " " + d.getFullYear();
+      setSaveName(dateStr + " Sim 01");
+      setShowSaveModal(true);
+    }
+  }, saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved!" : "Save Simulation"), /*#__PURE__*/React.createElement("span", {
     className: "badge",
     style: {
       cursor: "pointer",
@@ -2064,7 +2082,79 @@ function ResultsPage({
       color: "var(--danger)"
     },
     onClick: onReset
-  }, "Start New Projection")), /*#__PURE__*/React.createElement("div", {
+  }, "Start New Projection")), showSaveModal && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: "rgba(0,0,0,0.5)",
+      zIndex: 1000,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    onClick: () => setShowSaveModal(false)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      maxWidth: 400,
+      width: "90%",
+      padding: "24px"
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      marginBottom: 16
+    }
+  }, "Save Simulation"), /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 13,
+      color: "var(--text-dim)",
+      marginBottom: 6,
+      display: "block"
+    }
+  }, "Simulation Name"), /*#__PURE__*/React.createElement("input", {
+    className: "form-input",
+    value: saveName,
+    onChange: e => setSaveName(e.target.value),
+    onKeyDown: e => {
+      if (e.key === "Enter" && saveName.trim()) {
+        setShowSaveModal(false);
+        onSave(results, saveName.trim());
+      }
+    },
+    autoFocus: true,
+    style: {
+      width: "100%",
+      marginBottom: 16
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      justifyContent: "flex-end"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-secondary",
+    style: {
+      padding: "8px 16px",
+      fontSize: 13
+    },
+    onClick: () => setShowSaveModal(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary",
+    style: {
+      padding: "8px 16px",
+      fontSize: 13
+    },
+    disabled: !saveName.trim(),
+    onClick: () => {
+      setShowSaveModal(false);
+      onSave(results, saveName.trim());
+    }
+  }, "Save")))), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
       textAlign: "center",
@@ -2700,15 +2790,7 @@ function ResultsPage({
       justifyContent: "center",
       flexWrap: "wrap"
     }
-  }, onSave && /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary",
-    style: {
-      padding: "10px 20px",
-      fontSize: 13
-    },
-    onClick: () => onSave(results),
-    disabled: saveStatus === "saving" || saveStatus === "saved"
-  }, saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved!" : "Save Simulation"), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement("button", {
     className: "btn btn-secondary",
     style: {
       padding: "10px 20px",
@@ -3427,7 +3509,7 @@ function App() {
     setSaveStatus(null);
     window.scrollTo(0, 0);
   };
-  const handleSave = async results => {
+  const handleSave = async (results, customTitle) => {
     if (!user) {
       setAuthPage("login");
       return;
@@ -3435,14 +3517,15 @@ function App() {
     setSaveStatus("saving");
     try {
       // Build a summary for dashboard cards
+      const getLabel = r => r.scenario.name || r.scenario.instance_id || r.scenario.path_type;
       const summary = {
-        paths: results.map(r => r.label),
+        paths: results.map(r => getLabel(r)),
         net_worths: results.map(r => {
           const last = r.snapshots[r.snapshots.length - 1];
           return last ? last.net_worth : 0;
         })
       };
-      const title = results.map(r => r.label).join(" vs ");
+      const title = customTitle || results.map(r => getLabel(r)).join(" vs ");
       await apiCall("/api/simulations/save", {
         method: "POST",
         body: JSON.stringify({

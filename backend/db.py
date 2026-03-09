@@ -128,7 +128,7 @@ def get_user_simulations(user_id: int) -> list[dict]:
     try:
         cur = conn.cursor()
         cur.execute(
-            """SELECT id, share_id, title, results_summary, created_at, updated_at
+            """SELECT id, share_id, title, quiz_state, results_summary, created_at, updated_at
                FROM simulations WHERE user_id = %s ORDER BY updated_at DESC""",
             (user_id,),
         )

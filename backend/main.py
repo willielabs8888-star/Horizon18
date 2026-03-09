@@ -39,6 +39,7 @@ from backend.db import (
     get_simulation_by_share_id, delete_simulation, update_simulation_title,
     generate_share_id, DATABASE_URL,
 )
+from backend.email_service import send_welcome_email
 
 PORT = int(os.environ.get("PORT", 8000))
 FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
@@ -188,6 +189,12 @@ def auth_register():
     user = create_user(email, password_hash=pw_hash, display_name=display_name or email.split("@")[0])
     token = create_jwt(user["id"], email)
 
+    # Fire-and-forget welcome email (never blocks registration)
+    try:
+        send_welcome_email(email, user["display_name"])
+    except Exception:
+        pass  # Email failure should never break signup
+
     return jsonify({
         "token": token,
         "user": {"id": user["id"], "email": email, "display_name": user["display_name"]},
@@ -261,6 +268,12 @@ def auth_google():
         display_name=google_info["name"],
     )
     token = create_jwt(user["id"], google_info["email"])
+
+    try:
+        send_welcome_email(google_info["email"], user["display_name"])
+    except Exception:
+        pass
+
     return jsonify({
         "token": token,
         "user": {"id": user["id"], "email": google_info["email"], "display_name": user["display_name"]},
