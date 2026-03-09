@@ -1716,6 +1716,11 @@
                           const rid = r.scenario.instance_id || r.scenario.path_type;
                           const orig = r.summary.loan_term_original;
                           const actual = r.summary.loan_term_actual;
+                          const lastSnap = r.snapshots[r.snapshots.length - 1];
+                          const neverPaidOff = lastSnap && lastSnap.debt_remaining > 0;
+                          if (neverPaidOff) {
+                            return `${labelMap[rid]}: selected ${orig}-year repayment, but income never exceeds expenses enough to pay off the loan within the projection window`;
+                          }
                           return `${labelMap[rid]}: selected ${orig}-year repayment, but income-based payments extend it to ~${actual} years`;
                         }).join("; ")}.
                         <br /><span style={{color: "var(--text-dim)"}}>Loan payments are capped at what you can afford after living expenses. The remaining balance continues accruing interest.</span>

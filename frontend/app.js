@@ -2420,6 +2420,11 @@ function ResultsPage({
       const rid = r.scenario.instance_id || r.scenario.path_type;
       const orig = r.summary.loan_term_original;
       const actual = r.summary.loan_term_actual;
+      const lastSnap = r.snapshots[r.snapshots.length - 1];
+      const neverPaidOff = lastSnap && lastSnap.debt_remaining > 0;
+      if (neverPaidOff) {
+        return `${labelMap[rid]}: selected ${orig}-year repayment, but income never exceeds expenses enough to pay off the loan within the projection window`;
+      }
       return `${labelMap[rid]}: selected ${orig}-year repayment, but income-based payments extend it to ~${actual} years`;
     }).join("; "), ".", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
       style: {
