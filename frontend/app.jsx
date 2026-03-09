@@ -1,3 +1,12 @@
+    const { useState, useEffect, useCallback, useRef } = React;
+    const {
+      LineChart, Line, XAxis, YAxis, CartesianGrid,
+      Tooltip, ResponsiveContainer, ReferenceLine,
+    } = Recharts;
+
+    // ============================================================
+    // CONSTANTS
+    // ============================================================
 
     // Base colors per path type
     const PATH_BASE_COLORS = {

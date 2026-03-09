@@ -1,3 +1,24 @@
+const {
+  useState,
+  useEffect,
+  useCallback,
+  useRef
+} = React;
+const {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine
+} = Recharts;
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
 // Base colors per path type
 const PATH_BASE_COLORS = {
   college: ["#6366f1", "#a5b4fc", "#c7d2fe", "#818cf8", "#4f46e5"],
