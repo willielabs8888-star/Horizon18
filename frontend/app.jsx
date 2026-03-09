@@ -1548,13 +1548,23 @@
             <span className="badge active">{projYears}-Year Projection (ages {startAge}–{endAge})</span>
             {onSave && (
               <span className="badge" style={{cursor:"pointer", borderColor:"var(--accent)", color:"var(--accent)"}}
-                onClick={() => {
+                onClick={async () => {
                   if (saveStatus === "saved") return;
-                  // Generate default name: "09 Mar 2026 Sim 01"
+                  // Generate default name: "09 Mar 2026 Sim 01" with auto-increment
                   const d = new Date();
                   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
                   const dateStr = String(d.getDate()).padStart(2,"0") + " " + months[d.getMonth()] + " " + d.getFullYear();
-                  setSaveName(dateStr + " Sim 01");
+                  let nextNum = 1;
+                  try {
+                    const data = await apiCall("/api/simulations");
+                    const existing = (data.simulations || []).map(s => s.title || "");
+                    const pattern = new RegExp("^" + dateStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + " Sim (\\d+)$");
+                    for (const t of existing) {
+                      const m = t.match(pattern);
+                      if (m) nextNum = Math.max(nextNum, parseInt(m[1]) + 1);
+                    }
+                  } catch(e) {}
+                  setSaveName(dateStr + " Sim " + String(nextNum).padStart(2, "0"));
                   setShowSaveModal(true);
                 }}>
                 {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved!" : "Save Simulation"}
