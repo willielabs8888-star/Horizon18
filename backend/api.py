@@ -157,8 +157,8 @@ def _validate_financial_overrides(body: dict) -> dict | None:
 
     if savings_rate is not None:
         sr = float(savings_rate)
-        if sr < 0.0 or sr > 0.40:
-            return {"status": 422, "body": {"error": "savings_rate must be between 0 and 0.40."}}
+        if sr < 0.0 or sr > 0.50:
+            return {"status": 422, "body": {"error": "savings_rate must be between 0 and 0.50."}}
 
     if investment_return_rate is not None:
         ir = float(investment_return_rate)

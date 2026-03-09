@@ -1930,9 +1930,21 @@ function ResultsPage({
   // Advanced Assumptions state
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [savingsRate, setSavingsRate] = useState(0.10);
-  const [investReturn, setInvestReturn] = useState(0.07);
+  const [investReturn, setInvestReturn] = useState(0.06);
   const [taxRate, setTaxRate] = useState(REGION_TAX_DEFAULTS[quiz.region] || 0.22);
   const [startAge, setStartAge] = useState(18);
+
+  // Refs to always have current slider values (avoids stale closures)
+  const savingsRateRef = useRef(savingsRate);
+  const investReturnRef = useRef(investReturn);
+  const taxRateRef = useRef(taxRate);
+  const startAgeRef = useRef(startAge);
+  const projYearsRef = useRef(projYears);
+  savingsRateRef.current = savingsRate;
+  investReturnRef.current = investReturn;
+  taxRateRef.current = taxRate;
+  startAgeRef.current = startAge;
+  projYearsRef.current = projYears;
 
   // Year-by-year breakdown table state
   const [showTable, setShowTable] = useState(false);
@@ -1978,12 +1990,14 @@ function ResultsPage({
     const y = parseInt(e.target.value);
     setProjYears(y);
     if (sliderTimeout.current) clearTimeout(sliderTimeout.current);
-    sliderTimeout.current = setTimeout(() => fetchData(y, savingsRate, investReturn, taxRate, startAge), 200);
+    sliderTimeout.current = setTimeout(() => fetchData(y, savingsRateRef.current, investReturnRef.current, taxRateRef.current, startAgeRef.current), 200);
   };
-  const handleAssumptionChange = (setter, value, sr, ir, tr, sa) => {
+  const handleAssumptionChange = (setter, value) => {
     setter(value);
     if (assumptionTimeout.current) clearTimeout(assumptionTimeout.current);
-    assumptionTimeout.current = setTimeout(() => fetchData(projYears, sr, ir, tr, sa), 300);
+    assumptionTimeout.current = setTimeout(() => {
+      fetchData(projYearsRef.current, savingsRateRef.current, investReturnRef.current, taxRateRef.current, startAgeRef.current);
+    }, 300);
   };
   if (loading && !results) {
     return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -2143,7 +2157,7 @@ function ResultsPage({
     value: startAge,
     onChange: e => {
       const v = parseInt(e.target.value);
-      handleAssumptionChange(setStartAge, v, savingsRate, investReturn, taxRate, v);
+      handleAssumptionChange(setStartAge, v);
     },
     style: {
       width: "100%",
@@ -2179,12 +2193,12 @@ function ResultsPage({
   }, Math.round(savingsRate * 100), "%")), /*#__PURE__*/React.createElement("input", {
     type: "range",
     min: 0,
-    max: 100,
+    max: 50,
     step: 1,
     value: Math.round(savingsRate * 100),
     onChange: e => {
       const v = parseInt(e.target.value) / 100;
-      handleAssumptionChange(setSavingsRate, v, v, investReturn, taxRate, startAge);
+      handleAssumptionChange(setSavingsRate, v);
     },
     style: {
       width: "100%",
@@ -2197,7 +2211,7 @@ function ResultsPage({
       color: "var(--text-dim)",
       marginTop: 4
     }
-  }, "Percent of after-tax income saved annually")), /*#__PURE__*/React.createElement("div", {
+  }, "Percent of after-tax income saved annually. Most people save 5\u201315%.")), /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 20
     }
@@ -2225,7 +2239,7 @@ function ResultsPage({
     value: Math.round(investReturn * 1000),
     onChange: e => {
       const v = parseInt(e.target.value) / 1000;
-      handleAssumptionChange(setInvestReturn, v, savingsRate, v, taxRate, startAge);
+      handleAssumptionChange(setInvestReturn, v);
     },
     style: {
       width: "100%",
@@ -2238,7 +2252,7 @@ function ResultsPage({
       color: "var(--text-dim)",
       marginTop: 4
     }
-  }, "Historical average: ~7%/year after inflation. Conservative: 6%. Aggressive: 8%.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, "Default: 6%/year (real, after inflation). Conservative: 4%. Aggressive: 8%.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "space-between",
@@ -2262,7 +2276,7 @@ function ResultsPage({
     value: Math.round(taxRate * 100),
     onChange: e => {
       const v = parseInt(e.target.value) / 100;
-      handleAssumptionChange(setTaxRate, v, savingsRate, investReturn, v, startAge);
+      handleAssumptionChange(setTaxRate, v);
     },
     style: {
       width: "100%",
@@ -2328,7 +2342,7 @@ function ResultsPage({
     y1: "8",
     x2: "12.01",
     y2: "8"
-  })), /*#__PURE__*/React.createElement("span", null, "All figures are in ", /*#__PURE__*/React.createElement("strong", null, "nominal dollars"), ". Living expenses grow at 3% annually to reflect inflation; income and investment returns are not inflation-adjusted. These projections use simplified assumptions and national averages. Your actual results will vary.")), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("span", null, "All figures are in ", /*#__PURE__*/React.createElement("strong", null, "today's dollars"), " (adjusted for inflation). A dollar shown at age 40 has the same purchasing power as a dollar today. These projections use simplified assumptions and national averages. Your actual results will vary.")), /*#__PURE__*/React.createElement("div", {
     className: "card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "chart-tabs"
@@ -2363,8 +2377,9 @@ function ResultsPage({
       fontSize: 14
     }
   }, sorted.length >= 2 && (() => {
-    const best = sorted[0],
-      worst = sorted[sorted.length - 1];
+    const byNW = [...sorted].sort((a, b) => b.snapshots[b.snapshots.length - 1].net_worth - a.snapshots[a.snapshots.length - 1].net_worth);
+    const best = byNW[0],
+      worst = byNW[byNW.length - 1];
     const bestNW = best.snapshots[best.snapshots.length - 1].net_worth;
     const worstNW = worst.snapshots[worst.snapshots.length - 1].net_worth;
     const gap = bestNW - worstNW;
@@ -2684,7 +2699,7 @@ function ResultsPage({
     }
   }, "Failed to save. Please try again.")), /*#__PURE__*/React.createElement(HowItWorks, null), /*#__PURE__*/React.createElement("div", {
     className: "footer"
-  }, "Horizon18 \u2014 For educational purposes only. This tool does not provide financial advice.", /*#__PURE__*/React.createElement("br", null), "Living expenses grow at 3% annually to reflect inflation. Income and investment returns are not inflation-adjusted.", /*#__PURE__*/React.createElement("br", null), "Projections use simplified assumptions and generalized data sources (BLS, College Scorecard, NACE, DFAS)."));
+  }, "Horizon18 \u2014 For educational purposes only. This tool does not provide financial advice.", /*#__PURE__*/React.createElement("br", null), "All figures are in today's dollars (inflation-adjusted). A dollar shown at any age has the same purchasing power as a dollar today.", /*#__PURE__*/React.createElement("br", null), "Projections use simplified assumptions and generalized data sources (BLS, College Scorecard, NACE, DFAS)."));
 }
 
 // ============================================================
@@ -2801,7 +2816,7 @@ function HowItWorks() {
     className: "hiw-timeline-step"
   }, /*#__PURE__*/React.createElement("strong", null, "Day 1 (age 18):"), " Start working full-time right after high school. No education costs, no loans, no delay."), /*#__PURE__*/React.createElement("div", {
     className: "hiw-timeline-step"
-  }, /*#__PURE__*/React.createElement("strong", null, "Every year after:"), " Your salary grows at 2% per year. This is slower growth than paths requiring a degree, but you have a head start. Default salary growth: 2% annually.")), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Starting wages by industry:")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("strong", null, "Every year after:"), " Your salary grows at ~0.5% per year in real terms (above inflation). This is slower growth than paths requiring a degree, but you have a head start.")), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Starting wages by industry:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Retail:        $32,240/year", /*#__PURE__*/React.createElement("br", null), "Logistics:     $31,137/year", /*#__PURE__*/React.createElement("br", null), "Food Service:  $28,245/year", /*#__PURE__*/React.createElement("br", null), "Office/Admin:  $35,419/year", /*#__PURE__*/React.createElement("br", null), "Manufacturing: $34,320/year"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Income growth:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
@@ -2837,13 +2852,13 @@ function HowItWorks() {
     className: "hiw-formula"
   }, "Net Income = Gross Income \xD7 (1 \u2212 Tax Rate)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: $60,000 gross \xD7 (1 \u2212 0.18) = $49,200 take-home", /*#__PURE__*/React.createElement("br", null), "Default tax rate: 18% (simplified flat rate)"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83C\uDFE6 Student Loan Payments:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Standard Amortization Formula:", /*#__PURE__*/React.createElement("br", null), "Monthly Payment = P \xD7 [r(1+r)^n] / [(1+r)^n \u2212 1]", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Don't worry if that looks scary! Here's what the letters mean:", /*#__PURE__*/React.createElement("br", null), "P = your total loan balance when payments start", /*#__PURE__*/React.createElement("br", null), "r = monthly interest rate (6.5% annual \xF7 12 months = 0.542%)", /*#__PURE__*/React.createElement("br", null), "n = total number of monthly payments (10 years \xD7 12 = 120 payments)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: $83,884 loan at 6.5% for 10 years", /*#__PURE__*/React.createElement("br", null), "Monthly payment \u2248 $953", /*#__PURE__*/React.createElement("br", null), "Total paid over 10 years \u2248 $114,360", /*#__PURE__*/React.createElement("br", null), "Total interest \u2248 $30,476"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\u26A0\uFE0F Loan payments are capped at what you can afford:")), /*#__PURE__*/React.createElement("div", {
+  }, "Standard Amortization Formula:", /*#__PURE__*/React.createElement("br", null), "Monthly Payment = P \xD7 [r(1+r)^n] / [(1+r)^n \u2212 1]", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Don't worry if that looks scary! Here's what the letters mean:", /*#__PURE__*/React.createElement("br", null), "P = your total loan balance when payments start", /*#__PURE__*/React.createElement("br", null), "r = monthly interest rate (4.0% real annual \xF7 12 months = 0.333%)", /*#__PURE__*/React.createElement("br", null), "n = total number of monthly payments (10 years \xD7 12 = 120 payments)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: $83,884 loan at 4.0% real for 10 years", /*#__PURE__*/React.createElement("br", null), "Monthly payment \u2248 $849", /*#__PURE__*/React.createElement("br", null), "Total paid over 10 years \u2248 $101,880", /*#__PURE__*/React.createElement("br", null), "Total interest \u2248 $17,996"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\u26A0\uFE0F Loan payments are capped at what you can afford:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Actual Payment = min(Required Payment, Net Income \u2212 Living Expenses)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "If your income minus expenses is less than the required monthly payment,", /*#__PURE__*/React.createElement("br", null), "the simulation only pays what you can actually afford.", /*#__PURE__*/React.createElement("br", null), "The remaining balance continues accruing interest, and your loan takes", /*#__PURE__*/React.createElement("br", null), "longer to pay off than the originally selected term.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Required payment = $953/month ($11,436/year)", /*#__PURE__*/React.createElement("br", null), "But disposable income = $8,000/year", /*#__PURE__*/React.createElement("br", null), "\u2192 You pay $8,000. The shortfall stays on the loan with interest."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\u26A0\uFE0F Interest grows while you're in school:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Each year in school: Balance = Balance \xD7 (1 + 0.065)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Borrow $83,884 freshman year", /*#__PURE__*/React.createElement("br", null), "After 4 years of accrual: $83,884 \xD7 1.065^4 \u2248 $107,870", /*#__PURE__*/React.createElement("br", null), "That's $23,986 in interest before you make a single payment!"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCC8 Investment Growth (compound interest):")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Each year: Investments = (Previous Balance \xD7 1.07) + New Savings", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Default return rate: 7% per year", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Save $5,000/year for 30 years at 7%", /*#__PURE__*/React.createElement("br", null), "Total contributed: $150,000", /*#__PURE__*/React.createElement("br", null), "Final balance: ~$472,000 (compound interest earned you $322,000!)"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCB5 How much you save each year:")), /*#__PURE__*/React.createElement("div", {
+  }, "Each year: Investments = (Previous Balance \xD7 1.06) + New Savings", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Default return rate: 6% per year (real, after inflation)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Save $5,000/year for 30 years at 6% real", /*#__PURE__*/React.createElement("br", null), "Total contributed: $150,000", /*#__PURE__*/React.createElement("br", null), "Final balance: ~$395,000 in today's dollars (compound interest earned you $245,000!)"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCB5 How much you save each year:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Annual Savings = max(0, (Net Income \u2212 Living Expenses \u2212 Loan Payment) \xD7 Savings Rate)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "The 'Realized Savings Rate' chart shows what percentage of income was actually saved \u2014 which may be lower than your target if expenses and loan payments are high."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCCA Net Worth (the bottom line):")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
@@ -2851,7 +2866,7 @@ function HowItWorks() {
     className: "hiw-formula"
   }, "Salary = Base Salary \xD7 Metro Area Multiplier", /*#__PURE__*/React.createElement("br", null), "Expenses = Base Expenses \xD7 Metro Area Multiplier", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Northeast: Salary \xD71.15, Expenses \xD71.25 (pays more, costs more)", /*#__PURE__*/React.createElement("br", null), "Southeast: Salary \xD70.90, Expenses \xD70.87 (lower pay, lower cost)", /*#__PURE__*/React.createElement("br", null), "Midwest:   Salary \xD70.95, Expenses \xD70.90", /*#__PURE__*/React.createElement("br", null), "Southwest: Salary \xD70.97, Expenses \xD70.95", /*#__PURE__*/React.createElement("br", null), "West Coast: Salary \xD71.12, Expenses \xD71.15", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Living Expenses Base: Independent living ~$2,200/month. Living at home ~$800/month. Both adjusted by metro area cost-of-living multiplier."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83C\uDFE0 Living Expenses:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "At home:       $800/month base (before regional multiplier)", /*#__PURE__*/React.createElement("br", null), "Independent: $2,200/month base (rent, food, utilities, etc.)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Expenses grow at 3% per year to reflect inflation:", /*#__PURE__*/React.createElement("br", null), "Year N Expenses = Base Expenses \xD7 (1.03)^N", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example (Midwest, independent, Year 0):", /*#__PURE__*/React.createElement("br", null), "$2,200 \xD7 0.90 = $1,980/month = $23,760/year", /*#__PURE__*/React.createElement("br", null), "By Year 10: $23,760 \xD7 1.03^10 = ~$31,933/year"), /*#__PURE__*/React.createElement("div", {
+  }, "At home:       $800/month base (before regional multiplier)", /*#__PURE__*/React.createElement("br", null), "Independent: $2,200/month base (rent, food, utilities, etc.)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Expenses stay flat because all figures are in today's dollars (inflation-adjusted).", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example (Midwest, independent):", /*#__PURE__*/React.createElement("br", null), "$2,200 \xD7 0.90 = $1,980/month = $23,760/year"), /*#__PURE__*/React.createElement("div", {
     className: "hiw-note"
   }, "All defaults are adjustable via the Advanced Assumptions sliders above."))));
 }
