@@ -2017,8 +2017,8 @@
                   Salary in Year N = Starting Salary × (1 + Growth Rate)^(years working)<br/><br/>
                   Example (STEM major):<br/>
                   Year 1 salary = $80,000<br/>
-                  Year 5 salary = $80,000 × 1.04^4 = $93,588<br/>
-                  Growth rate varies by major: STEM 4%, Business 3.5%, Healthcare 3%
+                  Year 5 salary = $80,000 × 1.02^4 = $86,595<br/>
+                  Real growth rate varies by major: CS 2%, Engineering 1.5%, Business 1%, most others 0.5%
                 </div>
                 <div className="hiw-note">Source: NACE salary survey, BLS Occupational Outlook. Tuition: College Board 2025-26.</div>
               </HiwDropdown>
@@ -2057,7 +2057,7 @@
                 <div className="hiw-timeline">
                   <div className="hiw-timeline-step"><strong>Year 1 (age 18):</strong> Start trade school or apprenticeship. School costs are low ($12K-$15K total, not per year). You earn a wage from day one — starting around 40-50% of a journeyman's salary.</div>
                   <div className="hiw-timeline-step"><strong>Years 2–4 (ages 19–21):</strong> Continue apprenticeship with increasing wages each year (roughly 60% → 70% → 85% of journeyman pay).</div>
-                  <div className="hiw-timeline-step"><strong>Year 5+ (age 22+):</strong> Become a licensed journeyman earning full salary. Growth is steady at about 2.5% per year.</div>
+                  <div className="hiw-timeline-step"><strong>Year 5+ (age 22+):</strong> Become a licensed journeyman earning full salary. Growth is steady at about 0.5% per year in real terms (above inflation).</div>
                 </div>
 
                 <p><strong>Apprentice wage progression (Electrician example):</strong></p>
@@ -2066,7 +2066,7 @@
                   Year 2: $42,000 (62%)<br/>
                   Year 3: $49,000 (72%)<br/>
                   Year 4: $56,000 (83%)<br/>
-                  Year 5+: $67,810 × (1.025)^years as journeyman
+                  Year 5+: $67,810 × (1.005)^years as journeyman
                 </div>
 
                 <p><strong>Education cost:</strong></p>
@@ -2108,10 +2108,10 @@
 
                 <p><strong>Income growth:</strong></p>
                 <div className="hiw-formula">
-                  Salary in Year N = Starting Wage × (1.02)^N<br/><br/>
+                  Salary in Year N = Starting Wage × (1.005)^N<br/><br/>
                   Example (Admin, Midwest):<br/>
                   Start: $35,419 × 0.95 (regional) = $33,648<br/>
-                  Age 30: $33,648 × 1.02^12 = $42,680
+                  Age 30: $33,648 × 1.005^12 = $35,712
                 </div>
 
                 <p><strong>The trade-off:</strong> No debt and immediate income, but lower lifetime earnings. Over 30+ years, the salary ceiling is lower than degree-requiring paths.</p>
@@ -2201,10 +2201,10 @@
 
                 <p><strong>⚠️ Interest grows while you're in school:</strong></p>
                 <div className="hiw-formula">
-                  Each year in school: Balance = Balance × (1 + 0.065)<br/><br/>
+                  Each year in school: Balance = Balance × (1 + 0.040)<br/><br/>
                   Example: Borrow $83,884 freshman year<br/>
-                  After 4 years of accrual: $83,884 × 1.065^4 ≈ $107,870<br/>
-                  That's $23,986 in interest before you make a single payment!
+                  After 4 years of accrual: $83,884 × 1.040^4 ≈ $98,148<br/>
+                  That's $14,264 in interest (real dollars) before you make a single payment!
                 </div>
 
                 <p><strong>📈 Investment Growth (compound interest):</strong></p>
