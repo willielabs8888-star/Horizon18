@@ -238,12 +238,21 @@
       return map;
     }
 
-    /** Build a label map from instance_id → descriptive label */
+    /** Build a label map from instance_id → descriptive label.
+     *  Prefers the scenario.name from API results (includes real school names),
+     *  falls back to quiz-based instanceLabel if results aren't loaded yet. */
     function buildLabelMap(instances, results) {
       const map = {};
       for (const inst of instances) {
-        // Always use our detailed instanceLabel for consistency across charts, legends, and insights
-        map[inst.instance_id] = instanceLabel(inst, instances);
+        // Try to get the authoritative label from the API result (includes school names)
+        const match = (results || []).find(r =>
+          (r.scenario.instance_id || r.scenario.path_type) === inst.instance_id
+        );
+        if (match && match.scenario.name) {
+          map[inst.instance_id] = match.scenario.name;
+        } else {
+          map[inst.instance_id] = instanceLabel(inst, instances);
+        }
       }
       return map;
     }
@@ -1619,7 +1628,7 @@
           {/* Disclaimer banner */}
           <div className="disclaimer-banner">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span>All figures are in <strong>nominal dollars</strong> — inflation is not modeled. These projections use simplified assumptions and national averages. Your actual results will vary.</span>
+            <span>All figures are in <strong>nominal dollars</strong>. Living expenses grow at 3% annually to reflect inflation; income and investment returns are not inflation-adjusted. These projections use simplified assumptions and national averages. Your actual results will vary.</span>
           </div>
 
           {/* Chart tabs */}
@@ -2144,8 +2153,11 @@
                 <div className="hiw-formula">
                   At home:       $800/month base (before regional multiplier)<br/>
                   Independent: $2,200/month base (rent, food, utilities, etc.)<br/><br/>
-                  Example (Midwest, independent):<br/>
-                  $2,200 × 0.90 = $1,980/month = $23,760/year
+                  Expenses grow at 3% per year to reflect inflation:<br/>
+                  Year N Expenses = Base Expenses × (1.03)^N<br/><br/>
+                  Example (Midwest, independent, Year 0):<br/>
+                  $2,200 × 0.90 = $1,980/month = $23,760/year<br/>
+                  By Year 10: $23,760 × 1.03^10 = ~$31,933/year
                 </div>
                 <div className="hiw-note">All defaults are adjustable via the Advanced Assumptions sliders above.</div>
               </HiwDropdown>

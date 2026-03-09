@@ -335,12 +335,19 @@ function buildColorMap(instances) {
   return map;
 }
 
-/** Build a label map from instance_id → descriptive label */
+/** Build a label map from instance_id → descriptive label.
+ *  Prefers the scenario.name from API results (includes real school names),
+ *  falls back to quiz-based instanceLabel if results aren't loaded yet. */
 function buildLabelMap(instances, results) {
   const map = {};
   for (const inst of instances) {
-    // Always use our detailed instanceLabel for consistency across charts, legends, and insights
-    map[inst.instance_id] = instanceLabel(inst, instances);
+    // Try to get the authoritative label from the API result (includes school names)
+    const match = (results || []).find(r => (r.scenario.instance_id || r.scenario.path_type) === inst.instance_id);
+    if (match && match.scenario.name) {
+      map[inst.instance_id] = match.scenario.name;
+    } else {
+      map[inst.instance_id] = instanceLabel(inst, instances);
+    }
   }
   return map;
 }
@@ -2321,7 +2328,7 @@ function ResultsPage({
     y1: "8",
     x2: "12.01",
     y2: "8"
-  })), /*#__PURE__*/React.createElement("span", null, "All figures are in ", /*#__PURE__*/React.createElement("strong", null, "nominal dollars"), " \u2014 inflation is not modeled. These projections use simplified assumptions and national averages. Your actual results will vary.")), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("span", null, "All figures are in ", /*#__PURE__*/React.createElement("strong", null, "nominal dollars"), ". Living expenses grow at 3% annually to reflect inflation; income and investment returns are not inflation-adjusted. These projections use simplified assumptions and national averages. Your actual results will vary.")), /*#__PURE__*/React.createElement("div", {
     className: "card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "chart-tabs"
@@ -2839,7 +2846,7 @@ function HowItWorks() {
     className: "hiw-formula"
   }, "Salary = Base Salary \xD7 Metro Area Multiplier", /*#__PURE__*/React.createElement("br", null), "Expenses = Base Expenses \xD7 Metro Area Multiplier", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Northeast: Salary \xD71.15, Expenses \xD71.25 (pays more, costs more)", /*#__PURE__*/React.createElement("br", null), "Southeast: Salary \xD70.90, Expenses \xD70.87 (lower pay, lower cost)", /*#__PURE__*/React.createElement("br", null), "Midwest:   Salary \xD70.95, Expenses \xD70.90", /*#__PURE__*/React.createElement("br", null), "Southwest: Salary \xD70.97, Expenses \xD70.95", /*#__PURE__*/React.createElement("br", null), "West Coast: Salary \xD71.12, Expenses \xD71.15", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Living Expenses Base: Independent living ~$2,200/month. Living at home ~$800/month. Both adjusted by metro area cost-of-living multiplier."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83C\uDFE0 Living Expenses:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "At home:       $800/month base (before regional multiplier)", /*#__PURE__*/React.createElement("br", null), "Independent: $2,200/month base (rent, food, utilities, etc.)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example (Midwest, independent):", /*#__PURE__*/React.createElement("br", null), "$2,200 \xD7 0.90 = $1,980/month = $23,760/year"), /*#__PURE__*/React.createElement("div", {
+  }, "At home:       $800/month base (before regional multiplier)", /*#__PURE__*/React.createElement("br", null), "Independent: $2,200/month base (rent, food, utilities, etc.)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Expenses grow at 3% per year to reflect inflation:", /*#__PURE__*/React.createElement("br", null), "Year N Expenses = Base Expenses \xD7 (1.03)^N", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example (Midwest, independent, Year 0):", /*#__PURE__*/React.createElement("br", null), "$2,200 \xD7 0.90 = $1,980/month = $23,760/year", /*#__PURE__*/React.createElement("br", null), "By Year 10: $23,760 \xD7 1.03^10 = ~$31,933/year"), /*#__PURE__*/React.createElement("div", {
     className: "hiw-note"
   }, "All defaults are adjustable via the Advanced Assumptions sliders above."))));
 }

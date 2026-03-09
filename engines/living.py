@@ -12,7 +12,7 @@ from model.data_models import (
 )
 from defaults import (
     MONTHLY_EXPENSES, MILITARY_MONTHLY_EXPENSES,
-    get_multipliers_for_metro,
+    get_multipliers_for_metro, EXPENSE_INFLATION_RATE,
 )
 
 
@@ -25,6 +25,7 @@ def build_living_profile(
     metro_area: str = "national_avg",
     military_service_years: int = 0,
     military_use_gi_bill: bool = False,
+    expense_inflation_rate: float = EXPENSE_INFLATION_RATE,
 ) -> LivingProfile:
     """Build a LivingProfile from quiz answers + defaults."""
 
@@ -42,19 +43,22 @@ def build_living_profile(
     expenses: list[float] = []
 
     for year in range(projection_years):
+        # Apply inflation: year-0 costs are base, each subsequent year grows
+        inflation_factor = (1 + expense_inflation_rate) ** year
+
         if path_type == PathType.MILITARY and year < military_service_years:
             # During active duty, nearly everything is covered
-            expenses.append(annual_military)
+            expenses.append(annual_military * inflation_factor)
         elif path_type == PathType.MILITARY and military_use_gi_bill and year < military_service_years + 4:
             # During GI Bill school: living at home or independently
             if living_at_home and (year - military_service_years) < years_at_home:
-                expenses.append(annual_home)
+                expenses.append(annual_home * inflation_factor)
             else:
-                expenses.append(annual_indep)
+                expenses.append(annual_indep * inflation_factor)
         elif living_at_home and year < years_at_home:
-            expenses.append(annual_home)
+            expenses.append(annual_home * inflation_factor)
         else:
-            expenses.append(annual_indep)
+            expenses.append(annual_indep * inflation_factor)
 
     return LivingProfile(
         annual_expenses=expenses,

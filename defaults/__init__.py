@@ -48,6 +48,7 @@ from defaults.financial import (
     LOAN_INTEREST_RATE,
     LOAN_TERM_YEARS,
     GRACE_PERIOD_MONTHS,
+    EXPENSE_INFLATION_RATE,
 )
 
 from defaults.schools import (
@@ -80,6 +81,7 @@ __all__ = [
     "LOAN_INTEREST_RATE",
     "LOAN_TERM_YEARS",
     "GRACE_PERIOD_MONTHS",
+    "EXPENSE_INFLATION_RATE",
     "get_school",
     "search_schools",
     "get_school_count",

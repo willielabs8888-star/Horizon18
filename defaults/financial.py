@@ -17,6 +17,7 @@ EFFECTIVE_TAX_RATE: float = 0.18        # Simplified effective rate (engine defa
 LOAN_INTEREST_RATE: float = 0.065       # Federal direct loan rate
 LOAN_TERM_YEARS: int = 10              # Default repayment plan (editable by user, 5-30 years)
 GRACE_PERIOD_MONTHS: int = 6           # Post-graduation grace period
+EXPENSE_INFLATION_RATE: float = 0.03   # 3% annual increase in living expenses
 
 # Region-based effective tax rate defaults (blended federal + state + payroll)
 # Used by the frontend Advanced Assumptions section to set initial slider value.
