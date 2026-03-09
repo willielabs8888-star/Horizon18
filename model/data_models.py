@@ -312,6 +312,9 @@ class YearSnapshot:
     cumulative_taxes: float     # Total taxes paid through this year
     savings_rate_actual: float  # Actual savings as % of net income this year
 
+    # Loan feasibility (default = 0 so existing code doesn't break)
+    loan_payment_required: float = 0.0  # Pre-cap payment (what amortization demands)
+
 
 @dataclass
 class SimResult:

@@ -85,11 +85,14 @@ def compute_summary_metrics(
     milestones = _pick_milestones(start_age, projection_years)
     net_worth_milestones = {age: nw_at_age(age) for age in milestones}
 
-    # Peak debt burden ratio: max(annual_loan_payment / net_income)
+    # Peak debt burden ratio: max(required_loan_payment / net_income)
+    # Uses the pre-cap required payment so the ratio reflects true burden,
+    # not the artificially lowered capped amount.
     debt_burden = 0.0
     for s in snapshots:
-        if s.net_income > 0 and s.loan_payment > 0:
-            ratio = s.loan_payment / s.net_income
+        required = s.loan_payment_required if s.loan_payment_required > 0 else s.loan_payment
+        if s.net_income > 0 and required > 0:
+            ratio = required / s.net_income
             debt_burden = max(debt_burden, ratio)
 
     return {

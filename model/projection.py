@@ -79,6 +79,7 @@ def run_projection(scenario: Scenario) -> SimResult:
 
         # --- LOAN HANDLING ---
         loan_payment = 0.0
+        loan_payment_required = 0.0  # What amortization demands (before any cap)
         interest_this_year = 0.0
 
         if debt > 0:
@@ -111,6 +112,7 @@ def run_projection(scenario: Scenario) -> SimResult:
                     debt, ed.loan_interest_rate, monthly_payment,
                 )
                 loan_payment = interest + principal
+                loan_payment_required = loan_payment  # Save pre-cap value
                 interest_this_year = interest
 
                 # --- LOAN FEASIBILITY CAP ---
@@ -161,6 +163,7 @@ def run_projection(scenario: Scenario) -> SimResult:
             net_income=round(net_income, 2),
             living_expenses=round(expenses, 2),
             loan_payment=round(loan_payment, 2),
+            loan_payment_required=round(loan_payment_required, 2),
             debt_remaining=round(max(0.0, debt), 2),
             annual_savings=round(new_savings, 2),
             investment_balance=round(investment_balance, 2),
