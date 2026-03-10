@@ -22,15 +22,25 @@ STARTING_SALARY: dict[str, float] = {
     "engineering":            78_731,   # NACE 2025: engineering average
     "biology":                45_000,   # BLS: biological technicians / entry bio
     "environmental_science":  48_500,   # BLS: environmental scientists entry
+    "mathematics":            58_837,   # BLS 15-2041: mathematicians / analysts
+    "physics":                60_000,   # BLS 19-2012: BA-level (most need grad degree)
+    "chemistry":              63_711,   # BLS 19-2031: analytical chemists, lab roles
+    "data_science":           95_000,   # BLS 15-2051: data scientists, high demand
+    "software_engineering":   85_000,   # BLS 15-1252: adjusted to avoid CS overlap
+    "electrical_engineering": 80_929,   # BLS 17-2071 / NACE 2025
+    "mechanical_engineering": 79_600,   # BLS 17-2141 / NACE 2025
+    "civil_engineering":      76_782,   # BLS 17-2051
 
     # --- Health cluster ---
     "nursing":                77_600,   # BLS: registered nurses median (entry ~85th pctile adjusted down)
     "kinesiology":            48_000,   # BLS: exercise physiologists / fitness
+    "public_health":          49_428,   # BLS 29-1071: health educators / community health
 
     # --- Business cluster ---
     "business_finance":       65_276,   # NACE 2025: business/finance combined
     "accounting":             61_500,   # NACE: accounting entry-level
     "marketing":              57_000,   # NACE: marketing entry-level
+    "economics":              68_000,   # BLS 19-3011: research/financial analyst entry
 
     # --- Social science / humanities ---
     "psychology":             40_000,   # BLS: BA-level psychology positions
@@ -61,15 +71,25 @@ SALARY_GROWTH: dict[str, float] = {
     "engineering":            0.015,    # Engineering: solid real growth
     "biology":                0.005,    # Bio: minimal real growth, often needs grad degree
     "environmental_science":  0.005,    # Environmental: growing field, modest real
+    "mathematics":            0.010,    # Math: analyst roles, decent corporate growth
+    "physics":                0.005,    # Physics: BA-level roles limited, needs grad school
+    "chemistry":              0.005,    # Chemistry: lab roles, modest progression
+    "data_science":           0.015,    # Data science: tech-adjacent, strong demand
+    "software_engineering":   0.015,    # SW eng: similar to CS trajectory
+    "electrical_engineering": 0.015,    # EE: strong demand in chips/power
+    "mechanical_engineering": 0.015,    # ME: solid engineering track
+    "civil_engineering":      0.010,    # CE: stable infrastructure demand
 
     # --- Health cluster ---
     "nursing":                0.005,    # Healthcare: steady but tracks inflation
     "kinesiology":            0.005,    # Fitness: near-flat real growth
+    "public_health":          0.005,    # Public health: nonprofit/govt scales
 
     # --- Business cluster ---
     "business_finance":       0.010,    # Business: good corporate ladder
     "accounting":             0.010,    # Accounting: CPA path accelerates
     "marketing":              0.005,    # Marketing: modest real growth
+    "economics":              0.010,    # Economics: finance/analyst path
 
     # --- Social science / humanities ---
     "psychology":             0.005,    # Often needs grad school for advancement

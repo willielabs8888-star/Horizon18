@@ -129,6 +129,59 @@ def api_metros():
     return jsonify({"metros": metros, "count": get_metro_count()})
 
 
+@app.route("/api/salary-defaults")
+def api_salary_defaults():
+    """Return salary lookup tables pre-multiplied for a given metro area."""
+    metro = request.args.get("metro", "national_avg")
+    from defaults import (
+        STARTING_SALARY, SALARY_GROWTH, CC_TRANSFER_SALARY_DISCOUNT,
+        APPRENTICE_WAGES, JOURNEYMAN_SALARY, ENTRY_WAGES,
+        ENLISTED_ANNUAL_COMP, VETERAN_HIRING_PREMIUM,
+        get_multipliers_for_metro,
+    )
+    mults = get_multipliers_for_metro(metro)
+    sal_mult = mults["salary"]
+
+    # College/CC starting salaries (pre-multiplied by metro)
+    college_salaries = {}
+    for major, base in STARTING_SALARY.items():
+        college_salaries[major] = round(base * sal_mult)
+
+    cc_salaries = {}
+    for major, base in STARTING_SALARY.items():
+        cc_salaries[major] = round(base * sal_mult * (1 - CC_TRANSFER_SALARY_DISCOUNT))
+
+    # Trade wages (pre-multiplied)
+    trade_apprentice = {}
+    trade_journeyman = {}
+    for trade, wages in APPRENTICE_WAGES.items():
+        trade_apprentice[trade] = [round(w * sal_mult) for w in wages]
+    for trade, salary in JOURNEYMAN_SALARY.items():
+        trade_journeyman[trade] = round(salary * sal_mult)
+
+    # Workforce wages (pre-multiplied)
+    workforce_wages = {}
+    for industry, wage in ENTRY_WAGES.items():
+        workforce_wages[industry] = round(wage * sal_mult)
+
+    # Military (federal — no metro multiplier on active duty)
+    military_active = [round(c) for c in ENLISTED_ANNUAL_COMP]
+    military_veteran_premium = VETERAN_HIRING_PREMIUM
+
+    return jsonify({
+        "metro": metro,
+        "salary_multiplier": round(sal_mult, 4),
+        "college": college_salaries,
+        "cc_transfer": cc_salaries,
+        "trade_apprentice": trade_apprentice,
+        "trade_journeyman": trade_journeyman,
+        "workforce": workforce_wages,
+        "military_active": military_active,
+        "military_veteran_premium": military_veteran_premium,
+        "salary_growth": {k: v for k, v in SALARY_GROWTH.items()},
+    })
+
+
 @app.route("/api/schools/search")
 def api_schools_search():
     q = request.args.get("q", "")

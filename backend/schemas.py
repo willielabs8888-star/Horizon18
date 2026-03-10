@@ -30,12 +30,44 @@ class SchoolType(str, Enum):
 
 
 class Major(str, Enum):
+    # STEM cluster
+    COMPUTER_SCIENCE = "computer_science"
+    ENGINEERING = "engineering"
+    BIOLOGY = "biology"
+    ENVIRONMENTAL_SCIENCE = "environmental_science"
+    MATHEMATICS = "mathematics"
+    PHYSICS = "physics"
+    CHEMISTRY = "chemistry"
+    DATA_SCIENCE = "data_science"
+    SOFTWARE_ENGINEERING = "software_engineering"
+    ELECTRICAL_ENGINEERING = "electrical_engineering"
+    MECHANICAL_ENGINEERING = "mechanical_engineering"
+    CIVIL_ENGINEERING = "civil_engineering"
+    # Health cluster
+    NURSING = "nursing"
+    KINESIOLOGY = "kinesiology"
+    PUBLIC_HEALTH = "public_health"
+    # Business cluster
+    BUSINESS_FINANCE = "business_finance"
+    ACCOUNTING = "accounting"
+    MARKETING = "marketing"
+    ECONOMICS = "economics"
+    # Social science / humanities
+    PSYCHOLOGY = "psychology"
+    CRIMINAL_JUSTICE = "criminal_justice"
+    POLITICAL_SCIENCE = "political_science"
+    COMMUNICATIONS = "communications"
+    ENGLISH = "english"
+    SOCIAL_WORK = "social_work"
+    # Other
+    EDUCATION = "education"
+    ART_DESIGN = "art_design"
+    UNDECIDED = "undecided"
+    # Legacy aliases
     STEM = "stem"
     BUSINESS = "business"
     HEALTHCARE = "healthcare"
     LIBERAL_ARTS = "liberal_arts"
-    EDUCATION = "education"
-    UNDECIDED = "undecided"
 
 
 class TradeType(str, Enum):

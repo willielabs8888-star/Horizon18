@@ -47,14 +47,24 @@ const LABEL_MAP = {
   private: "Private University",
   // Majors — new granular list
   computer_science: "Computer Science",
-  engineering: "Engineering",
+  engineering: "Engineering (General)",
   biology: "Biology / Pre-Med",
   environmental_science: "Environmental Science",
+  mathematics: "Mathematics / Statistics",
+  physics: "Physics",
+  chemistry: "Chemistry",
+  data_science: "Data Science",
+  software_engineering: "Software Engineering",
+  electrical_engineering: "Electrical Engineering",
+  mechanical_engineering: "Mechanical Engineering",
+  civil_engineering: "Civil Engineering",
   nursing: "Nursing",
   kinesiology: "Kinesiology / Exercise Science",
+  public_health: "Public Health",
   business_finance: "Business / Finance",
   accounting: "Accounting",
   marketing: "Marketing",
+  economics: "Economics",
   psychology: "Psychology",
   criminal_justice: "Criminal Justice",
   political_science: "Political Science",
@@ -838,7 +848,7 @@ function SimChart({
 // QUIZ PAGE (multi-instance)
 // ============================================================
 
-const QUIZ_STEPS = ["paths", "details", "location", "review"];
+const QUIZ_STEPS = ["paths", "details", "location", "salary", "review"];
 let _nextId = 0;
 
 // Metro area → region mapping (built dynamically from /api/metros response)
@@ -1369,7 +1379,7 @@ function QuizPage({
       }, /*#__PURE__*/React.createElement("option", {
         value: "",
         disabled: true
-      }, "Select a major..."), ["computer_science", "engineering", "biology", "environmental_science", "nursing", "kinesiology", "business_finance", "accounting", "marketing", "psychology", "criminal_justice", "political_science", "communications", "english", "social_work", "education", "art_design", "undecided"].map(m => /*#__PURE__*/React.createElement("option", {
+      }, "Select a major..."), ["computer_science", "software_engineering", "data_science", "engineering", "electrical_engineering", "mechanical_engineering", "civil_engineering", "biology", "environmental_science", "mathematics", "physics", "chemistry", "nursing", "kinesiology", "public_health", "business_finance", "accounting", "marketing", "economics", "psychology", "criminal_justice", "political_science", "communications", "english", "social_work", "education", "art_design", "undecided"].map(m => /*#__PURE__*/React.createElement("option", {
         key: m,
         value: m
       }, LABEL_MAP[m]))))), pt === "cc_transfer" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
@@ -1640,7 +1650,7 @@ function QuizPage({
       }, /*#__PURE__*/React.createElement("option", {
         value: "",
         disabled: true
-      }, "Select a major..."), ["computer_science", "engineering", "biology", "environmental_science", "nursing", "kinesiology", "business_finance", "accounting", "marketing", "psychology", "criminal_justice", "political_science", "communications", "english", "social_work", "education", "art_design", "undecided"].map(m => /*#__PURE__*/React.createElement("option", {
+      }, "Select a major..."), ["computer_science", "software_engineering", "data_science", "engineering", "electrical_engineering", "mechanical_engineering", "civil_engineering", "biology", "environmental_science", "mathematics", "physics", "chemistry", "nursing", "kinesiology", "public_health", "business_finance", "accounting", "marketing", "economics", "psychology", "criminal_justice", "political_science", "communications", "english", "social_work", "education", "art_design", "undecided"].map(m => /*#__PURE__*/React.createElement("option", {
         key: m,
         value: m
       }, LABEL_MAP[m])))), /*#__PURE__*/React.createElement("p", {
@@ -1741,7 +1751,7 @@ function QuizPage({
       }, /*#__PURE__*/React.createElement("option", {
         value: "",
         disabled: true
-      }, "Select a major..."), ["computer_science", "engineering", "biology", "environmental_science", "nursing", "kinesiology", "business_finance", "accounting", "marketing", "psychology", "criminal_justice", "political_science", "communications", "english", "social_work", "education", "art_design", "undecided"].map(m => /*#__PURE__*/React.createElement("option", {
+      }, "Select a major..."), ["computer_science", "software_engineering", "data_science", "engineering", "electrical_engineering", "mechanical_engineering", "civil_engineering", "biology", "environmental_science", "mathematics", "physics", "chemistry", "nursing", "kinesiology", "public_health", "business_finance", "accounting", "marketing", "economics", "psychology", "criminal_justice", "political_science", "communications", "english", "social_work", "education", "art_design", "undecided"].map(m => /*#__PURE__*/React.createElement("option", {
         key: m,
         value: m
       }, LABEL_MAP[m])))), !inst.use_gi_bill && /*#__PURE__*/React.createElement("div", {
@@ -1818,7 +1828,459 @@ function QuizPage({
     }, "Living at home typically means living with parents or family to reduce rent and utility costs.")));
   };
 
-  // Step 3: Review (sorted by path type)
+  // Step 3: Salary review (editable estimates)
+  const [salaryDefaults, setSalaryDefaults] = useState(null);
+  const [salaryLoading, setSalaryLoading] = useState(false);
+  const salaryFetchedMetro = useRef(null);
+  const fetchSalaryDefaults = metro => {
+    if (salaryFetchedMetro.current === metro && salaryDefaults) return;
+    setSalaryLoading(true);
+    fetch(`/api/salary-defaults?metro=${encodeURIComponent(metro)}`).then(r => r.json()).then(data => {
+      setSalaryDefaults(data);
+      salaryFetchedMetro.current = metro;
+      // Pre-fill any instances that don't have overrides yet
+      setInstances(prev => prev.map(inst => {
+        const updated = {
+          ...inst
+        };
+        if (inst.path_type === "college" && !inst.starting_salary_override && inst.major) {
+          updated._estimated_salary = data.college[inst.major] || null;
+        }
+        if (inst.path_type === "cc_transfer" && !inst.starting_salary_override && inst.major) {
+          updated._estimated_salary = data.cc_transfer[inst.major] || null;
+        }
+        if (inst.path_type === "trade" && inst.trade_type) {
+          if (!inst.journeyman_salary_override) updated._estimated_journeyman = data.trade_journeyman[inst.trade_type] || null;
+          if (!inst.apprentice_wages_override) updated._estimated_apprentice = data.trade_apprentice[inst.trade_type] || null;
+        }
+        if (inst.path_type === "workforce" && inst.industry) {
+          if (!inst.known_starting_wage) updated._estimated_wage = data.workforce[inst.industry] || null;
+        }
+        if (inst.path_type === "military") {
+          updated._military_active = data.military_active;
+          if (inst.use_gi_bill && inst.gi_bill_major) {
+            updated._estimated_salary = data.college[inst.gi_bill_major] || null;
+          } else if (inst.civilian_industry) {
+            const baseWage = data.workforce[inst.civilian_industry] || 0;
+            updated._estimated_wage = Math.round(baseWage * (1 + (data.military_veteran_premium || 0)));
+          }
+        }
+        return updated;
+      }));
+    }).catch(() => {}).finally(() => setSalaryLoading(false));
+  };
+  const renderSalaryStep = () => {
+    // Fetch defaults when step loads
+    if (!salaryDefaults || salaryFetchedMetro.current !== shared.metro_area) {
+      fetchSalaryDefaults(shared.metro_area);
+    }
+    const sorted = sortInstances(instances);
+    const metroLabel = (metros.find(m => m.code === shared.metro_area) || {}).label || "National Average";
+    return /*#__PURE__*/React.createElement("div", {
+      className: "quiz-step"
+    }, /*#__PURE__*/React.createElement("h2", null, "Review estimated salaries"), /*#__PURE__*/React.createElement("p", {
+      className: "hint"
+    }, "These are estimated starting salaries for ", metroLabel, " based on national data and local cost of living. Adjust any value if you have better information."), salaryLoading && /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "center",
+        padding: 20,
+        color: "var(--text-dim)"
+      }
+    }, "Loading salary estimates..."), !salaryLoading && sorted.map(inst => {
+      const color = instanceColor(inst, instances);
+      const pt = inst.path_type;
+      return /*#__PURE__*/React.createElement("div", {
+        key: inst.instance_id,
+        className: "card",
+        style: {
+          marginBottom: 12,
+          borderLeft: `3px solid ${color}`,
+          padding: "14px 16px"
+        }
+      }, /*#__PURE__*/React.createElement("strong", {
+        style: {
+          color,
+          marginBottom: 8,
+          display: "block"
+        }
+      }, instanceLabel(inst, instances)), (pt === "college" || pt === "cc_transfer") && (() => {
+        const majorKey = inst.major;
+        const lookup = pt === "college" ? salaryDefaults?.college || {} : salaryDefaults?.cc_transfer || {};
+        const estimated = lookup[majorKey] || 0;
+        const current = inst.starting_salary_override || estimated;
+        const isOverridden = inst.starting_salary_override != null;
+        return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+          className: "form-group",
+          style: {
+            marginBottom: 8
+          }
+        }, /*#__PURE__*/React.createElement("label", {
+          style: {
+            fontSize: 13
+          }
+        }, "Estimated starting salary after graduation"), /*#__PURE__*/React.createElement("div", {
+          style: {
+            display: "flex",
+            gap: 8,
+            alignItems: "center"
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: "relative",
+            flex: 1
+          }
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            position: "absolute",
+            left: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#666",
+            fontSize: 14
+          }
+        }, "$"), /*#__PURE__*/React.createElement("input", {
+          type: "number",
+          className: "form-select",
+          style: {
+            paddingLeft: 22
+          },
+          min: "0",
+          step: "1000",
+          value: current || "",
+          placeholder: estimated ? estimated.toLocaleString() : "",
+          onChange: e => {
+            const val = parseFloat(e.target.value);
+            updateInstance(inst.instance_id, "starting_salary_override", val > 0 ? val : null);
+          }
+        })), isOverridden && /*#__PURE__*/React.createElement("button", {
+          className: "btn btn-secondary",
+          style: {
+            fontSize: 11,
+            padding: "4px 8px"
+          },
+          onClick: () => updateInstance(inst.instance_id, "starting_salary_override", null)
+        }, "Reset")), /*#__PURE__*/React.createElement("p", {
+          className: "field-hint",
+          style: {
+            marginTop: 4
+          }
+        }, "Based on ", (LABEL_MAP[majorKey] || majorKey || "your major").replace("_", " "), " graduates in ", metroLabel, ".", pt === "cc_transfer" && " Includes a 2% discount for community college transfer.", salaryDefaults?.salary_growth?.[majorKey] != null && ` Grows at ${(salaryDefaults.salary_growth[majorKey] * 100).toFixed(1)}%/year above inflation.`)));
+      })(), pt === "trade" && (() => {
+        const tradeKey = inst.trade_type;
+        const estJourneyman = salaryDefaults?.trade_journeyman?.[tradeKey] || 0;
+        const estApprentice = salaryDefaults?.trade_apprentice?.[tradeKey] || [0, 0, 0, 0];
+        const currentJ = inst.journeyman_salary_override || estJourneyman;
+        const currentA = inst.apprentice_wages_override || estApprentice;
+        const jOverridden = inst.journeyman_salary_override != null;
+        const aOverridden = inst.apprentice_wages_override != null;
+        return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+          className: "form-group",
+          style: {
+            marginBottom: 10
+          }
+        }, /*#__PURE__*/React.createElement("label", {
+          style: {
+            fontSize: 13
+          }
+        }, "Journeyman salary (after apprenticeship)"), /*#__PURE__*/React.createElement("div", {
+          style: {
+            display: "flex",
+            gap: 8,
+            alignItems: "center"
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: "relative",
+            flex: 1
+          }
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            position: "absolute",
+            left: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#666",
+            fontSize: 14
+          }
+        }, "$"), /*#__PURE__*/React.createElement("input", {
+          type: "number",
+          className: "form-select",
+          style: {
+            paddingLeft: 22
+          },
+          min: "0",
+          step: "1000",
+          value: currentJ || "",
+          onChange: e => {
+            const val = parseFloat(e.target.value);
+            updateInstance(inst.instance_id, "journeyman_salary_override", val > 0 ? val : null);
+          }
+        })), jOverridden && /*#__PURE__*/React.createElement("button", {
+          className: "btn btn-secondary",
+          style: {
+            fontSize: 11,
+            padding: "4px 8px"
+          },
+          onClick: () => updateInstance(inst.instance_id, "journeyman_salary_override", null)
+        }, "Reset"))), /*#__PURE__*/React.createElement("div", {
+          className: "form-group",
+          style: {
+            marginBottom: 8
+          }
+        }, /*#__PURE__*/React.createElement("label", {
+          style: {
+            fontSize: 13
+          }
+        }, "Apprentice wages (years 1\u20134)"), /*#__PURE__*/React.createElement("div", {
+          style: {
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 6
+          }
+        }, [0, 1, 2, 3].map(yr => /*#__PURE__*/React.createElement("div", {
+          key: yr,
+          style: {
+            position: "relative"
+          }
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            position: "absolute",
+            left: 8,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#888",
+            fontSize: 11
+          }
+        }, "Yr ", yr + 1, " $"), /*#__PURE__*/React.createElement("input", {
+          type: "number",
+          className: "form-select",
+          style: {
+            paddingLeft: 52,
+            fontSize: 13
+          },
+          min: "0",
+          step: "500",
+          value: (aOverridden ? currentA[yr] : estApprentice[yr]) || "",
+          onChange: e => {
+            const val = parseFloat(e.target.value) || 0;
+            const newWages = [...(inst.apprentice_wages_override || [...estApprentice])];
+            newWages[yr] = val;
+            updateInstance(inst.instance_id, "apprentice_wages_override", newWages);
+          }
+        })))), aOverridden && /*#__PURE__*/React.createElement("button", {
+          className: "btn btn-secondary",
+          style: {
+            fontSize: 11,
+            padding: "4px 6px",
+            marginTop: 4
+          },
+          onClick: () => updateInstance(inst.instance_id, "apprentice_wages_override", null)
+        }, "Reset apprentice wages"), /*#__PURE__*/React.createElement("p", {
+          className: "field-hint",
+          style: {
+            marginTop: 4
+          }
+        }, (LABEL_MAP[tradeKey] || tradeKey || "").replace("_", " "), " wages progress from ~40% to ~85% of journeyman pay. After journeyman, grows at 0.5%/year above inflation.")));
+      })(), pt === "workforce" && (() => {
+        const indKey = inst.industry;
+        const estimated = salaryDefaults?.workforce?.[indKey] || 0;
+        const current = inst.known_starting_wage || estimated;
+        const isOverridden = inst.known_starting_wage != null;
+        return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+          className: "form-group",
+          style: {
+            marginBottom: 8
+          }
+        }, /*#__PURE__*/React.createElement("label", {
+          style: {
+            fontSize: 13
+          }
+        }, "Starting annual wage"), /*#__PURE__*/React.createElement("div", {
+          style: {
+            display: "flex",
+            gap: 8,
+            alignItems: "center"
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: "relative",
+            flex: 1
+          }
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            position: "absolute",
+            left: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#666",
+            fontSize: 14
+          }
+        }, "$"), /*#__PURE__*/React.createElement("input", {
+          type: "number",
+          className: "form-select",
+          style: {
+            paddingLeft: 22
+          },
+          min: "0",
+          step: "500",
+          value: current || "",
+          onChange: e => {
+            const val = parseFloat(e.target.value);
+            updateInstance(inst.instance_id, "known_starting_wage", val > 0 ? val : null);
+          }
+        })), isOverridden && /*#__PURE__*/React.createElement("button", {
+          className: "btn btn-secondary",
+          style: {
+            fontSize: 11,
+            padding: "4px 8px"
+          },
+          onClick: () => updateInstance(inst.instance_id, "known_starting_wage", null)
+        }, "Reset")), /*#__PURE__*/React.createElement("p", {
+          className: "field-hint",
+          style: {
+            marginTop: 4
+          }
+        }, "Based on ", (LABEL_MAP[indKey] || indKey || "").replace("_", " "), " entry-level in ", metroLabel, ". Grows at 0.5%/year above inflation.")));
+      })(), pt === "military" && (() => {
+        const activeComp = salaryDefaults?.military_active || [];
+        return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+          className: "form-group",
+          style: {
+            marginBottom: 10
+          }
+        }, /*#__PURE__*/React.createElement("label", {
+          style: {
+            fontSize: 13
+          }
+        }, "Active duty compensation (federal \u2014 not adjustable)"), /*#__PURE__*/React.createElement("div", {
+          style: {
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 4
+          }
+        }, activeComp.map((c, i) => /*#__PURE__*/React.createElement("div", {
+          key: i,
+          style: {
+            fontSize: 12,
+            color: "var(--text-dim)",
+            padding: "4px 8px",
+            background: "var(--card-bg)",
+            borderRadius: 4
+          }
+        }, "Year ", i + 1, ": ", fmtFull(c))))), inst.use_gi_bill && inst.gi_bill_major && /*#__PURE__*/React.createElement("div", {
+          className: "form-group",
+          style: {
+            marginBottom: 8
+          }
+        }, /*#__PURE__*/React.createElement("label", {
+          style: {
+            fontSize: 13
+          }
+        }, "Post-degree starting salary (", (LABEL_MAP[inst.gi_bill_major] || inst.gi_bill_major).replace("_", " "), ")"), /*#__PURE__*/React.createElement("div", {
+          style: {
+            display: "flex",
+            gap: 8,
+            alignItems: "center"
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: "relative",
+            flex: 1
+          }
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            position: "absolute",
+            left: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#666",
+            fontSize: 14
+          }
+        }, "$"), /*#__PURE__*/React.createElement("input", {
+          type: "number",
+          className: "form-select",
+          style: {
+            paddingLeft: 22
+          },
+          min: "0",
+          step: "1000",
+          value: inst.starting_salary_override || salaryDefaults?.college?.[inst.gi_bill_major] || "",
+          onChange: e => {
+            const val = parseFloat(e.target.value);
+            updateInstance(inst.instance_id, "starting_salary_override", val > 0 ? val : null);
+          }
+        })), inst.starting_salary_override && /*#__PURE__*/React.createElement("button", {
+          className: "btn btn-secondary",
+          style: {
+            fontSize: 11,
+            padding: "4px 8px"
+          },
+          onClick: () => updateInstance(inst.instance_id, "starting_salary_override", null)
+        }, "Reset")), /*#__PURE__*/React.createElement("p", {
+          className: "field-hint",
+          style: {
+            marginTop: 4
+          }
+        }, "Salary after using GI Bill to complete a degree in ", metroLabel, ".")), !inst.use_gi_bill && inst.civilian_industry && /*#__PURE__*/React.createElement("div", {
+          className: "form-group",
+          style: {
+            marginBottom: 8
+          }
+        }, /*#__PURE__*/React.createElement("label", {
+          style: {
+            fontSize: 13
+          }
+        }, "Post-service civilian wage (", (LABEL_MAP[inst.civilian_industry] || inst.civilian_industry).replace("_", " "), ")"), /*#__PURE__*/React.createElement("div", {
+          style: {
+            display: "flex",
+            gap: 8,
+            alignItems: "center"
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: "relative",
+            flex: 1
+          }
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            position: "absolute",
+            left: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#666",
+            fontSize: 14
+          }
+        }, "$"), /*#__PURE__*/React.createElement("input", {
+          type: "number",
+          className: "form-select",
+          style: {
+            paddingLeft: 22
+          },
+          min: "0",
+          step: "500",
+          value: inst.known_starting_wage || inst._estimated_wage || "",
+          onChange: e => {
+            const val = parseFloat(e.target.value);
+            updateInstance(inst.instance_id, "known_starting_wage", val > 0 ? val : null);
+          }
+        })), inst.known_starting_wage && /*#__PURE__*/React.createElement("button", {
+          className: "btn btn-secondary",
+          style: {
+            fontSize: 11,
+            padding: "4px 8px"
+          },
+          onClick: () => updateInstance(inst.instance_id, "known_starting_wage", null)
+        }, "Reset")), /*#__PURE__*/React.createElement("p", {
+          className: "field-hint",
+          style: {
+            marginTop: 4
+          }
+        }, "Includes a 10% veteran hiring premium over standard ", (LABEL_MAP[inst.civilian_industry] || "").replace("_", " "), " wages.")));
+      })());
+    }));
+  };
+
+  // Step 4: Review (sorted by path type)
   const renderReviewStep = () => {
     const sorted = sortInstances(instances);
     const metroLabel = (metros.find(m => m.code === shared.metro_area) || {}).label || "National Average";
@@ -1864,7 +2326,7 @@ function QuizPage({
       }, " \u2014 ", instanceSummary(inst)));
     }));
   };
-  const stepRenderers = [renderPathStep, renderDetailsStep, renderLocationStep, renderReviewStep];
+  const stepRenderers = [renderPathStep, renderDetailsStep, renderLocationStep, renderSalaryStep, renderReviewStep];
   return /*#__PURE__*/React.createElement("div", {
     className: "quiz-container"
   }, /*#__PURE__*/React.createElement("div", {

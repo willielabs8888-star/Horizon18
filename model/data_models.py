@@ -46,15 +46,25 @@ class Major(str, Enum):
     ENGINEERING = "engineering"
     BIOLOGY = "biology"
     ENVIRONMENTAL_SCIENCE = "environmental_science"
+    MATHEMATICS = "mathematics"
+    PHYSICS = "physics"
+    CHEMISTRY = "chemistry"
+    DATA_SCIENCE = "data_science"
+    SOFTWARE_ENGINEERING = "software_engineering"
+    ELECTRICAL_ENGINEERING = "electrical_engineering"
+    MECHANICAL_ENGINEERING = "mechanical_engineering"
+    CIVIL_ENGINEERING = "civil_engineering"
 
     # Health cluster
     NURSING = "nursing"
     KINESIOLOGY = "kinesiology"
+    PUBLIC_HEALTH = "public_health"
 
     # Business cluster
     BUSINESS_FINANCE = "business_finance"
     ACCOUNTING = "accounting"
     MARKETING = "marketing"
+    ECONOMICS = "economics"
 
     # Social science / humanities cluster
     PSYCHOLOGY = "psychology"

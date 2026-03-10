@@ -46,25 +46,40 @@ def build_living_profile(
     # Determine if this is a college/CC path (where R&B is already in education costs)
     is_college_path = path_type in (PathType.COLLEGE, PathType.CC_TRANSFER)
 
+    # Determine when "post-school" life begins for at-home counting.
+    # For college/CC: after years_in_school. For military: after service
+    # (+ GI Bill school if applicable). For trade/workforce: year 0.
+    if path_type == PathType.MILITARY:
+        post_school_start = military_service_years + (4 if military_use_gi_bill else 0)
+    elif is_college_path:
+        post_school_start = years_in_school
+    elif path_type == PathType.TRADE:
+        post_school_start = 0  # Trades earn from day 1, at-home starts immediately
+    else:
+        post_school_start = 0  # Workforce starts immediately
+
     for year in range(projection_years):
         # Apply inflation: year-0 costs are base, each subsequent year grows
         inflation_factor = (1 + expense_inflation_rate) ** year
+
+        # How many post-school years have elapsed?
+        years_post_school = max(0, year - post_school_start)
 
         if path_type == PathType.MILITARY and year < military_service_years:
             # During active duty, nearly everything is covered
             expenses.append(annual_military * inflation_factor)
         elif path_type == PathType.MILITARY and military_use_gi_bill and year < military_service_years + 4:
             # During GI Bill school: living at home or independently
-            if living_at_home and (year - military_service_years) < years_at_home:
+            if living_at_home and years_post_school < years_at_home:
                 expenses.append(annual_home * inflation_factor)
             else:
                 expenses.append(annual_indep * inflation_factor)
         elif is_college_path and year < years_in_school:
             # During college: room & board is already included in education costs
             # (and folded into student loans), so living expenses = $0.
-            # If living at home, R&B is lower but still in education costs.
             expenses.append(0.0)
-        elif living_at_home and year < years_at_home:
+        elif living_at_home and years_post_school < years_at_home:
+            # Post-school: living at home for the specified number of years
             expenses.append(annual_home * inflation_factor)
         else:
             expenses.append(annual_indep * inflation_factor)
