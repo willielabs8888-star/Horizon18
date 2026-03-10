@@ -1256,17 +1256,23 @@
                 {pt === "military" && (
                   <>
                     <div className="form-group">
-                      <label>Use GI Bill for college after service?</label>
-                      <div className="toggle-row" onClick={() => updateInstance(inst.instance_id, "use_gi_bill", !inst.use_gi_bill)}>
-                        <div className={"toggle-indicator" + (inst.use_gi_bill ? " on" : "")}>
-                          {inst.use_gi_bill ? "✓" : ""}
-                        </div>
-                        <span>{inst.use_gi_bill ? "Yes — pursue a degree after service" : "No — enter civilian workforce directly"}</span>
+                      <label>Will you use the GI Bill for college after serving?</label>
+                      <div style={{display: "flex", gap: 12, marginBottom: 12}}>
+                        <button className={"btn" + (inst.use_gi_bill ? " btn-primary" : " btn-secondary")}
+                          onClick={() => updateInstance(inst.instance_id, "use_gi_bill", true)}
+                          style={{flex: 1}}>
+                          Yes
+                        </button>
+                        <button className={"btn" + (!inst.use_gi_bill ? " btn-primary" : " btn-secondary")}
+                          onClick={() => updateInstance(inst.instance_id, "use_gi_bill", false)}
+                          style={{flex: 1}}>
+                          No
+                        </button>
                       </div>
                     </div>
                     {inst.use_gi_bill && (
                       <div className={"form-group" + (showMissing && missingFieldNames.has("gi_bill_major") ? " field-missing" : "")}>
-                        <label>Post-service major</label>
+                        <label>What will you study after serving?</label>
                         <select className="form-select" value={inst.gi_bill_major}
                           onChange={e => updateInstance(inst.instance_id, "gi_bill_major", e.target.value)}>
                           <option value="" disabled>Select a major...</option>
@@ -1278,8 +1284,8 @@
                     )}
                     {!inst.use_gi_bill && (
                       <div className={"form-group" + (showMissing && missingFieldNames.has("civilian_industry") ? " field-missing" : "")}>
-                        <label>Civilian industry after service</label>
-                        <p className="field-hint">Which industry will you work in after your enlistment? Veterans receive a 10% hiring premium over standard entry-level wages.</p>
+                        <label>What industry will you work in after serving?</label>
+                        <p className="field-hint">Veterans receive a 10% hiring premium over standard entry-level wages.</p>
                         <select className="form-select" value={inst.civilian_industry}
                           onChange={e => updateInstance(inst.instance_id, "civilian_industry", e.target.value)}>
                           {["retail","logistics","food_service","admin","manufacturing","security","landscaping","customer_service","delivery_driver","janitorial","home_health_aide","childcare"].map(i =>
