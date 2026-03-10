@@ -981,7 +981,7 @@
                     {inst.part_time_work && (
                       <div className="form-group">
                         <label>Expected annual earnings</label>
-                        <p className="field-hint">Estimated income from part-time work during the 4 school years.</p>
+                        <p className="field-hint">Estimated annual income from part-time work during school. This income is applied toward tuition and room & board first, reducing the amount you need to borrow. Any remainder is saved at your designated savings rate.</p>
                         <div style={{position:"relative"}}>
                           <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#666",fontSize:14}}>$</span>
                           <input type="number" className="form-select" style={{paddingLeft:22}} min="0"
@@ -1179,7 +1179,7 @@
                     {inst.part_time_work && (
                       <div className="form-group">
                         <label>Expected annual earnings</label>
-                        <p className="field-hint">Estimated income from part-time work during the 4 school years.</p>
+                        <p className="field-hint">Estimated annual income from part-time work during school. This income is applied toward tuition and room & board first, reducing the amount you need to borrow. Any remainder is saved at your designated savings rate.</p>
                         <div style={{position:"relative"}}>
                           <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#666",fontSize:14}}>$</span>
                           <input type="number" className="form-select" style={{paddingLeft:22}} min="0"
@@ -1836,10 +1836,10 @@
             const activeResult = results.find(r => (r.scenario.instance_id || r.scenario.path_type) === effectiveTab);
 
             const pathFormulas = {
-              college: "Income during school = part-time work earnings. After graduation: Starting Salary × (1 + Growth Rate)^years of experience. Grace period year = 50% of starting salary.",
-              cc_transfer: "Same as 4-year college, but starting salary is ~2% lower for CC transfers. First 2 years at community college tuition rates.",
+              college: "Part-time income during school is applied toward tuition + room & board first (reducing loans). Any leftover is saved. After graduation: Starting Salary × (1 + Growth Rate)^years of experience. Grace period year = 50% of starting salary.",
+              cc_transfer: "Part-time income offsets school costs first, then savings. Same as 4-year college, but starting salary is ~2% lower for CC transfers. First 2 years at community college tuition rates.",
               trade: "Apprentice wages increase each year (40→60→75→90% of journeyman rate). After apprenticeship: Journeyman Salary × (1 + Growth Rate)^years.",
-              workforce: "Starting Wage × (1.02)^years. No education costs or debt. Income begins immediately.",
+              workforce: "Starting Wage × (1.005)^years. No education costs or debt. Income begins immediately.",
               military: "Active duty pay during service (E1→E4 progression). GI Bill housing allowance (~$28k/yr, tax-exempt) during school. Then civilian career salary.",
             };
             const sharedFormulas = "Savings = max(0, (Net Income − Living Expenses − Loan Payment) × Savings Rate)\nInvestments = Previous Balance × (1 + Return Rate) + Annual Savings\nNet Worth = Investment Balance − Remaining Debt";
@@ -1998,7 +1998,7 @@
               <HiwDropdown icon="🎓" title="4-Year College" badge="4 years school">
                 <p><strong>What this path looks like:</strong></p>
                 <div className="hiw-timeline">
-                  <div className="hiw-timeline-step"><strong>Years 1–4 (ages 18–21):</strong> Full-time student. You pay tuition + room & board each year. Optional part-time work (default: ~$8,000/year if enabled; you can adjust in path settings).</div>
+                  <div className="hiw-timeline-step"><strong>Years 1–4 (ages 18–21):</strong> Full-time student. You pay tuition + room & board each year. Optional part-time work (default: ~$8,000/year if enabled). Part-time income is applied toward school costs first, reducing the amount you need to borrow. Any remaining income after school costs are covered is saved at your designated savings rate.</div>
                   <div className="hiw-timeline-step"><strong>Year 5 (age 22):</strong> Grace period — 6 months after graduation before loan payments begin. You start job searching; we count half a year of salary.</div>
                   <div className="hiw-timeline-step"><strong>Year 6+ (age 23+):</strong> Full-time career. Salary grows each year based on your major. You pay off loans, save, and invest.</div>
                 </div>
@@ -2006,11 +2006,13 @@
                 <p><strong>Education cost:</strong></p>
                 <div className="hiw-formula">
                   Total Cost = (Annual Tuition × 4 years) + (Room & Board × 4 years)<br/>
-                  Loan Amount = Total Cost − Family Savings (if any)<br/><br/>
-                  Example (Public In-State, off-campus):<br/>
-                  = ($11,371 × 4) + ($9,600 × 4) = $83,884<br/>
-                  With $0 savings → you borrow $83,884<br/><br/>
-                  Family savings are applied to education costs first. Any excess becomes your starting investment.
+                  Each year: Net School Cost = Year Cost − Part-Time Income (after tax)<br/>
+                  Then: 529 savings cover what they can, and the remainder becomes student loans.<br/><br/>
+                  Example (Public In-State, off-campus, $8k part-time):<br/>
+                  Year cost = $11,371 + $9,600 = $20,971<br/>
+                  Part-time after tax = $8,000 × 0.82 = $6,560<br/>
+                  Net cost = $20,971 − $6,560 = $14,411 (covered by 529/loans)<br/><br/>
+                  Family savings (529) are applied to remaining costs first. Any excess becomes your starting investment.
                 </div>
 
                 <p><strong>Income after graduation:</strong></p>
@@ -2028,8 +2030,8 @@
               <HiwDropdown icon="🔄" title="Community College + Transfer" badge="2 + 2 years">
                 <p><strong>What this path looks like:</strong></p>
                 <div className="hiw-timeline">
-                  <div className="hiw-timeline-step"><strong>Years 1–2 (ages 18–19):</strong> Community college at much lower tuition. Same room & board costs.</div>
-                  <div className="hiw-timeline-step"><strong>Years 3–4 (ages 20–21):</strong> Transfer to a 4-year university. Pay university tuition for the final 2 years.</div>
+                  <div className="hiw-timeline-step"><strong>Years 1–2 (ages 18–19):</strong> Community college at much lower tuition. Same room & board costs. Optional part-time work (default: ~$10,000/year if enabled). Part-time income goes toward school costs first, then savings.</div>
+                  <div className="hiw-timeline-step"><strong>Years 3–4 (ages 20–21):</strong> Transfer to a 4-year university. Pay university tuition for the final 2 years. Part-time income continues to offset costs.</div>
                   <div className="hiw-timeline-step"><strong>Year 5+ (age 22+):</strong> Same career path as a 4-year grad, but starting salary is 2% lower (reflects minor hiring differences for transfer students).</div>
                 </div>
 
@@ -2074,14 +2076,14 @@
                 <div className="hiw-formula">
                   Trade school total (one-time, not per year):<br/>
                   Electrician: $14,640 | Plumber: $12,500 | HVAC: $12,500<br/>
-                  Carpenter: $12,550 | Welder: $12,000 | Automotive Tech: $12,500<br/>
-                  Diesel Mechanic: $13,000 | CNC Machinist: $12,750 | Lineworker: $14,500<br/>
-                  Ironworker: $13,200 | Elevator Mechanic: $15,000 | Heavy Equipment Op: $12,200<br/><br/>
+                  Carpenter: $12,550 | Welder: $15,000 | Automotive Tech: $20,000<br/>
+                  Diesel Mechanic: $18,000 | CNC Machinist: $15,000 | Lineworker: $10,000<br/>
+                  Ironworker: $12,000 | Elevator Mechanic: $12,000 | Heavy Equipment Op: $10,000<br/><br/>
                   Journeyman Salaries (Year 5+):<br/>
-                  Electrician: $67,810 | Plumber: $62,430 | HVAC: $61,040<br/>
-                  Carpenter: $54,650 | Welder: $52,810 | Automotive Tech: $45,230<br/>
-                  Diesel Mechanic: $56,780 | CNC Machinist: $59,400 | Lineworker: $72,150<br/>
-                  Ironworker: $64,320 | Elevator Mechanic: $82,900 | Heavy Equipment Op: $58,620<br/><br/>
+                  Electrician: $67,810 | Plumber: $64,960 | HVAC: $54,100<br/>
+                  Carpenter: $60,083 | Welder: $49,000 | Automotive Tech: $48,000<br/>
+                  Diesel Mechanic: $58,000 | CNC Machinist: $49,970 | Lineworker: $82,340<br/>
+                  Ironworker: $62,000 | Elevator Mechanic: $99,000 | Heavy Equipment Op: $55,280<br/><br/>
                   Loan term: 5 years (shorter than college loans)<br/>
                   No grace period — you're already working
                 </div>
@@ -2100,11 +2102,11 @@
 
                 <p><strong>Starting wages by industry:</strong></p>
                 <div className="hiw-formula">
-                  Retail:        $32,240/year<br/>
-                  Logistics:     $31,137/year<br/>
-                  Food Service:  $28,245/year<br/>
-                  Office/Admin:  $35,419/year<br/>
-                  Manufacturing: $34,320/year
+                  Retail: $32,240 | Logistics: $36,500 | Food Service: $28,245<br/>
+                  Admin: $35,419 | Manufacturing: $34,320 | Security: $36,530<br/>
+                  Customer Service: $38,200 | Delivery Driver: $38,180<br/>
+                  Home Health Aide: $33,530 | Childcare: $28,520<br/>
+                  Landscaping: $34,480 | Janitorial: $31,990
                 </div>
 
                 <p><strong>Income growth:</strong></p>
@@ -2182,10 +2184,10 @@
                   P = your total loan balance when payments start<br/>
                   r = monthly interest rate (4.0% real annual ÷ 12 months = 0.333%)<br/>
                   n = total number of monthly payments (10 years × 12 = 120 payments)<br/><br/>
-                  Example: $83,884 loan at 4.0% real for 10 years<br/>
-                  Monthly payment ≈ $849<br/>
-                  Total paid over 10 years ≈ $101,880<br/>
-                  Total interest ≈ $17,996
+                  Example: $60,000 loan at 4.0% real for 10 years<br/>
+                  Monthly payment ≈ $607<br/>
+                  Total paid over 10 years ≈ $72,840<br/>
+                  Total interest ≈ $12,840
                 </div>
 
                 <p><strong>⚠️ Loan payments are capped at what you can afford:</strong></p>
@@ -2203,9 +2205,12 @@
                 <p><strong>⚠️ Interest grows while you're in school:</strong></p>
                 <div className="hiw-formula">
                   Each year in school: Balance = Balance × (1 + 0.040)<br/><br/>
-                  Example: Borrow $83,884 freshman year<br/>
-                  After 4 years of accrual: $83,884 × 1.040^4 ≈ $98,148<br/>
-                  That's $14,264 in interest (real dollars) before you make a single payment!
+                  New loans are taken out each year (after part-time income and 529 savings<br/>
+                  are applied). All outstanding loan balances accrue interest while you're<br/>
+                  in school — so earlier borrowing costs more than later borrowing.<br/><br/>
+                  Example: Borrow $15,000/year for 4 years at 4.0% real<br/>
+                  By graduation your balance is ~$63,650 (vs $60,000 borrowed)<br/>
+                  That's ~$3,650 in interest before you make a single payment.
                 </div>
 
                 <p><strong>📈 Investment Growth (compound interest):</strong></p>
@@ -2219,7 +2224,8 @@
 
                 <p><strong>💵 How much you save each year:</strong></p>
                 <div className="hiw-formula">
-                  Annual Savings = max(0, (Net Income − Living Expenses − Loan Payment) × Savings Rate)<br/><br/>
+                  Annual Savings = max(0, (Net Income − School Cost Offset − Living Expenses − Loan Payment) × Savings Rate)<br/><br/>
+                  During school years, part-time income is applied toward tuition and room & board first. Only the remaining income (if any) flows into the savings calculation above.<br/><br/>
                   The 'Realized Savings Rate' chart shows what percentage of income was actually saved — which may be lower than your target if expenses and loan payments are high.
                 </div>
 

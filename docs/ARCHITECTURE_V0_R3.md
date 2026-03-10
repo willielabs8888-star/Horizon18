@@ -269,6 +269,12 @@ with a part-time job, or active duty military. It just reads `annual_income[year
 This is what makes engine composition work — the career engine handles all the
 complexity of wage ramps, delays, and phase transitions internally.
 
+**Part-time income during school:** During school years, net part-time income is
+applied toward tuition + room & board costs first (reducing the amount borrowed).
+Only income remaining after school costs are satisfied flows into the normal
+savings/investment pipeline. This is handled in `projection.py` — income is
+calculated before school costs so the offset can be applied.
+
 **How the array gets built for each path type:**
 
 ```

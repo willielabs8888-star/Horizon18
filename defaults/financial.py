@@ -8,7 +8,7 @@ ALL VALUES ARE IN REAL (INFLATION-ADJUSTED) DOLLARS.
 We strip ~2.5% historical CPI inflation from all nominal rates so that
 every dollar shown represents today's purchasing power.
 
-Investment return: ~4.5% real (nominal ~7% minus ~2.5% inflation).
+Investment return: ~6% real (nominal ~8.5% minus ~2.5% inflation).
 Loan interest:     ~4.0% real (nominal ~6.5% minus ~2.5% inflation).
 Effective tax rate: 18% (simplified flat rate for early-career earners,
 avoids bracket complexity in V0).

@@ -19,7 +19,7 @@ Inputs: path type, school type, region, family savings, living situation.
 
 ### Career Income Engine
 Produces: pre-computed `annual_income[N]` array for the full projection horizon.
-Handles: part-time income during school, grace period half-income, apprentice wage ramps, military pay → GI Bill housing → post-degree salary, immediate workforce income.
+Handles: part-time income during school (applied toward school costs first, reducing borrowing; remainder saved), grace period half-income, apprentice wage ramps, military pay → GI Bill housing → post-degree salary, immediate workforce income.
 Applies: regional salary multipliers, CC transfer discount (2%), veteran hiring premium (10%).
 
 ### Living Expense Engine

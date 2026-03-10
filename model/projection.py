@@ -64,12 +64,29 @@ def run_projection(scenario: Scenario) -> SimResult:
         if year < school_years and savings_529 > 0:
             savings_529 *= (1 + scenario.investment_return_rate)
 
+        # --- INCOME (read from career engine) ---
+        # Income is calculated FIRST so that part-time earnings during
+        # school can offset tuition/R&B costs and reduce borrowing.
+        gross_income = career.annual_income[year]
+
+        # Apply tax — but check tax_exempt_years
+        if year in career.tax_exempt_years:
+            net_income = gross_income  # GI Bill housing is tax-free
+        else:
+            net_income = gross_income * (1 - career.effective_tax_rate)
+
         # --- SCHOOL COSTS + LOAN DISBURSEMENT ---
-        # Each year of school: withdraw costs from 529 first, borrow the rest
+        # Each year of school: part-time income offsets costs first,
+        # then 529 covers what it can, and the rest becomes student loans.
+        pt_income_used_for_school = 0.0
         if year < school_years:
             year_cost = ed.annual_tuition[year] + ed.annual_room_and_board[year]
 
-            # Pay from 529 first
+            # Part-time income offsets school costs (reduces borrowing)
+            pt_income_used_for_school = min(net_income, year_cost)
+            year_cost -= pt_income_used_for_school
+
+            # Pay remainder from 529 first
             paid_from_529 = min(savings_529, year_cost)
             savings_529 -= paid_from_529
             year_borrowed = year_cost - paid_from_529
@@ -80,15 +97,6 @@ def run_projection(scenario: Scenario) -> SimResult:
         if year == school_years and savings_529 > 0:
             investment_balance += savings_529
             savings_529 = 0.0
-
-        # --- INCOME (read from career engine) ---
-        gross_income = career.annual_income[year]
-
-        # Apply tax — but check tax_exempt_years
-        if year in career.tax_exempt_years:
-            net_income = gross_income  # GI Bill housing is tax-free
-        else:
-            net_income = gross_income * (1 - career.effective_tax_rate)
 
         # --- EXPENSES (read from living engine) ---
         expenses = living.annual_expenses[year]
@@ -157,7 +165,9 @@ def run_projection(scenario: Scenario) -> SimResult:
 
         # --- SAVINGS + INVESTMENT ---
         # Disposable income = what's left after expenses and loan payments.
-        disposable = net_income - expenses - loan_payment
+        # During school years, part-time income already used for tuition
+        # is excluded so it isn't double-counted.
+        disposable = net_income - pt_income_used_for_school - expenses - loan_payment
 
         if disposable >= 0:
             # Positive cashflow
