@@ -2095,10 +2095,32 @@
                             ))}
                           </tbody>
                         </table>
-                        {/* Compact formula reference */}
-                        <div style={{padding: "12px 20px", borderTop: "1px solid var(--border)", background: "var(--bg)", fontSize: 11, color: "var(--text-dim)"}}>
-                          <strong>Formulas:</strong> Net Income = Gross × (1 − Tax Rate) · Savings = (Net Income − School Offset − Expenses − Loan Pmt) × Savings Rate · Investments = Previous × 1.06 + Savings · Net Worth = Investments − All Debt
-                        </div>
+                        {/* How these numbers are calculated */}
+                        {activeResult && (() => {
+                          const pt = activeResult.scenario.path_type;
+                          const incomeExplain = pt === "college"
+                            ? "Starting salary is based on median earnings for your chosen major and region (e.g., a CS grad in the Northeast earns more than in the Midwest). Salary grows each year at a major-specific rate above inflation. During school, income reflects part-time work (if enabled). The first year after graduation is a grace period — you earn roughly half a year's salary while job searching."
+                            : pt === "cc_transfer"
+                            ? "Same salary data as 4-year college, but CC transfer grads start ~2% lower to reflect employer preferences. During community college and university years, income reflects part-time work (if enabled). Grace period applies after graduation."
+                            : pt === "trade"
+                            ? "Apprentice wages start at ~40% of journeyman pay and increase each year (55%, 70%, 85%). Journeyman salary is based on your trade and region — for example, electricians earn differently in the Southeast vs. Northeast. You earn from day one with no grace period."
+                            : pt === "workforce"
+                            ? "Starting wage is based on your chosen industry and region (e.g., manufacturing in the Midwest vs. retail nationally). Wages grow ~0.5% per year above inflation — slower than degree paths, but you start earning immediately with no school costs."
+                            : pt === "military"
+                            ? "Active duty pay is based on E-1 through E-4 base pay plus Basic Allowance for Housing (BAH). Pay is nationally standardized. If using the GI Bill, post-service income matches civilian college grads in your major. Without the GI Bill, post-service pay uses your chosen industry wage plus a 10% veteran hiring premium."
+                            : "";
+                          return (
+                            <div style={{padding: "14px 20px", borderTop: "1px solid var(--border)", background: "var(--bg)", fontSize: 12, color: "var(--text-dim)", lineHeight: 1.7}}>
+                              <div style={{fontWeight: 600, color: "var(--text)", marginBottom: 8, fontSize: 13}}>How these numbers are calculated</div>
+                              <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Income:</strong> {incomeExplain}</p>
+                              <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Net income:</strong> Gross pay minus an estimated tax rate (~22%), giving your take-home pay.</p>
+                              <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Living expenses:</strong> Based on your region's cost of living. Reduced by half during the grace period year (you graduate mid-year).</p>
+                              <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Savings:</strong> Whatever is left after expenses and loan payments, multiplied by your savings rate. During school, part-time income goes toward tuition first.</p>
+                              <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Investments:</strong> Last year's balance grows at 6% (real return above inflation), plus this year's new savings.</p>
+                              <p style={{marginBottom: 0}}><strong style={{color: "var(--text)"}}>Net worth:</strong> Investment balance minus all remaining debt (student loans + any consumer debt).</p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
