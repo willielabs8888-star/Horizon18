@@ -101,6 +101,12 @@ def run_projection(scenario: Scenario) -> SimResult:
         # --- EXPENSES (read from living engine) ---
         expenses = living.annual_expenses[year]
 
+        # Grace period expense adjustment: graduates mid-year (May/June),
+        # so the first year after school has only ~6 months of full
+        # independent living expenses, mirroring the grace period income logic.
+        if year == school_years and school_years > 0:
+            expenses *= (ed.grace_period_months / 12)
+
         # --- CONSUMER DEBT INTEREST ---
         # Consumer debt accrues interest each year (credit card rates)
         if consumer_debt > 0:
@@ -136,32 +142,44 @@ def run_projection(scenario: Scenario) -> SimResult:
                         student_debt, ed.loan_interest_rate, ed.loan_term_years,
                     )
 
-                # Calculate what the amortization schedule requires
-                new_balance, interest, principal = amortize_year(
-                    student_debt, ed.loan_interest_rate, monthly_payment,
-                )
-                loan_payment = interest + principal
-                loan_payment_required = loan_payment  # Save pre-cap value
-                interest_this_year = interest
-
-                # --- LOAN FEASIBILITY CAP ---
-                # Loan payments cannot exceed what the borrower can actually
-                # afford. If the required payment exceeds disposable income
-                # (net income minus living expenses), cap the payment and let
-                # the loan extend.
-                max_affordable = max(0.0, net_income - expenses)
-                if loan_payment > max_affordable and max_affordable >= 0:
-                    loan_payment_was_capped = True
-                    # Pay only what's affordable
-                    loan_payment = max_affordable
-                    # Recalculate: interest still accrues, but less principal is paid
+                # --- CONSUMER DEBT PRIORITY ---
+                # If consumer debt exists (~15.5% interest), defer student
+                # loan payments (~4% interest) and let disposable income
+                # attack the higher-rate debt first. Interest still accrues
+                # on student loans during deferral.
+                if consumer_debt > 0:
                     interest_this_year = student_debt * ed.loan_interest_rate
-                    principal_paid = max(0.0, loan_payment - interest_this_year)
-                    student_debt = student_debt + interest_this_year - principal_paid
+                    student_debt += interest_this_year
+                    total_interest_paid += interest_this_year
+                    loan_payment = 0.0
+                    loan_payment_was_capped = True
                 else:
-                    student_debt = new_balance
+                    # Normal amortization — no consumer debt to worry about
+                    new_balance, interest, principal = amortize_year(
+                        student_debt, ed.loan_interest_rate, monthly_payment,
+                    )
+                    loan_payment = interest + principal
+                    loan_payment_required = loan_payment  # Save pre-cap value
+                    interest_this_year = interest
 
-                total_interest_paid += interest_this_year
+                    # --- LOAN FEASIBILITY CAP ---
+                    # Loan payments cannot exceed what the borrower can actually
+                    # afford. If the required payment exceeds disposable income
+                    # (net income minus living expenses), cap the payment and let
+                    # the loan extend.
+                    max_affordable = max(0.0, net_income - expenses)
+                    if loan_payment > max_affordable and max_affordable >= 0:
+                        loan_payment_was_capped = True
+                        # Pay only what's affordable
+                        loan_payment = max_affordable
+                        # Recalculate: interest still accrues, but less principal is paid
+                        interest_this_year = student_debt * ed.loan_interest_rate
+                        principal_paid = max(0.0, loan_payment - interest_this_year)
+                        student_debt = student_debt + interest_this_year - principal_paid
+                    else:
+                        student_debt = new_balance
+
+                    total_interest_paid += interest_this_year
 
         # --- SAVINGS + INVESTMENT ---
         # Disposable income = what's left after expenses and loan payments.
