@@ -146,14 +146,16 @@ def run_projection(scenario: Scenario) -> SimResult:
         disposable = net_income - expenses - loan_payment
 
         if disposable >= 0:
-            # Positive cashflow: save a portion, grow investments
-            new_savings = disposable * scenario.savings_rate
-
-            # If there's consumer debt, pay it down before saving
-            if consumer_debt > 0 and new_savings > 0:
-                paydown = min(consumer_debt, new_savings)
+            # Positive cashflow
+            if consumer_debt > 0:
+                # PRIORITY: Pay down high-interest consumer debt first.
+                # All disposable income goes to consumer debt before saving.
+                paydown = min(consumer_debt, disposable)
                 consumer_debt -= paydown
-                new_savings -= paydown
+                leftover = disposable - paydown
+                new_savings = leftover * scenario.savings_rate
+            else:
+                new_savings = disposable * scenario.savings_rate
 
             investment_balance = (
                 investment_balance * (1 + scenario.investment_return_rate)

@@ -2228,7 +2228,11 @@
                   The simulation draws down investments first. If investments hit $0,<br/>
                   the remaining deficit becomes consumer debt (think credit cards).<br/><br/>
                   Consumer debt accrues ~15.5% annual interest (real rate).<br/>
-                  When you return to positive cashflow, consumer debt is paid down before saving.<br/><br/>
+                  During school years, shortfalls go to student loans instead (lower rate).<br/><br/>
+                  <strong>Payoff priority:</strong> Consumer debt is paid off first because of its<br/>
+                  much higher interest rate (15.5% vs 4% for student loans). All disposable<br/>
+                  income goes toward consumer debt before any saving or investing.<br/>
+                  Once consumer debt is cleared, normal saving resumes.<br/><br/>
                   This is tracked separately from student loans — you can see both<br/>
                   in the Year-by-Year table and the Consumer Debt chart tab.
                 </div>
