@@ -136,7 +136,8 @@ const DEFAULT_CONFIGS = {
   military: {
     enlistment_years: 4,
     use_gi_bill: true,
-    gi_bill_major: ""
+    gi_bill_major: "",
+    civilian_industry: "admin"
   }
 };
 const MAX_INSTANCES = 10;
@@ -245,7 +246,7 @@ function instanceLabel(inst, allInstances) {
   } else if (inst.path_type === "workforce" && inst.industry) {
     specific = ` – ${fmtEnum(inst.industry)}`;
   } else if (inst.path_type === "military") {
-    specific = inst.use_gi_bill ? ` – GI Bill (${fmtEnum(inst.gi_bill_major) || "Undecided"})` : " – Civilian";
+    specific = inst.use_gi_bill ? ` – GI Bill (${fmtEnum(inst.gi_bill_major) || "Undecided"})` : ` – Civilian (${fmtEnum(inst.civilian_industry) || "Admin"})`;
   }
   return `${base}${specific}${num}`;
 }
@@ -289,6 +290,10 @@ function getMissingFields(inst) {
       field: "gi_bill_major",
       label: "Pick a post-service major"
     });
+    if (!inst.use_gi_bill && !inst.civilian_industry) missing.push({
+      field: "civilian_industry",
+      label: "Pick a civilian industry"
+    });
   }
   return missing;
 }
@@ -314,7 +319,7 @@ function instanceSummary(inst) {
   }
   if (pt === "trade") return LABEL_MAP[inst.trade_type] || "Not configured";
   if (pt === "workforce") return LABEL_MAP[inst.industry] || "Not configured";
-  if (pt === "military") return inst.use_gi_bill ? `GI Bill: ${LABEL_MAP[inst.gi_bill_major] || "Not configured"}` : "No GI Bill";
+  if (pt === "military") return inst.use_gi_bill ? `GI Bill: ${LABEL_MAP[inst.gi_bill_major] || "Not configured"}` : `Civilian: ${LABEL_MAP[inst.civilian_industry] || "Not configured"}`;
   return "";
 }
 
@@ -923,7 +928,7 @@ function QuizPage({
         }
         if (pt === "trade") return inst.trade_type;
         if (pt === "workforce") return inst.industry;
-        if (pt === "military") return !inst.use_gi_bill || inst.gi_bill_major;
+        if (pt === "military") return inst.use_gi_bill ? !!inst.gi_bill_major : !!inst.civilian_industry;
         return true;
       });
     }
@@ -1333,7 +1338,7 @@ function QuizPage({
         className: "form-group"
       }, /*#__PURE__*/React.createElement("label", null, "Expected annual earnings"), /*#__PURE__*/React.createElement("p", {
         className: "field-hint"
-      }, "Estimated income from part-time work during the 4 school years."), /*#__PURE__*/React.createElement("div", {
+      }, "Estimated annual income from part-time work during school. This income is applied toward tuition and room & board first, reducing the amount you need to borrow. Any remainder is saved at your designated savings rate."), /*#__PURE__*/React.createElement("div", {
         style: {
           position: "relative"
         }
@@ -1604,7 +1609,7 @@ function QuizPage({
         className: "form-group"
       }, /*#__PURE__*/React.createElement("label", null, "Expected annual earnings"), /*#__PURE__*/React.createElement("p", {
         className: "field-hint"
-      }, "Estimated income from part-time work during the 4 school years."), /*#__PURE__*/React.createElement("div", {
+      }, "Estimated annual income from part-time work during school. This income is applied toward tuition and room & board first, reducing the amount you need to borrow. Any remainder is saved at your designated savings rate."), /*#__PURE__*/React.createElement("div", {
         style: {
           position: "relative"
         }
@@ -1709,14 +1714,27 @@ function QuizPage({
         value: i
       }, LABEL_MAP[i])))), pt === "military" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
         className: "form-group"
-      }, /*#__PURE__*/React.createElement("label", null, "Use GI Bill for college after service?"), /*#__PURE__*/React.createElement("div", {
-        className: "toggle-row",
-        onClick: () => updateInstance(inst.instance_id, "use_gi_bill", !inst.use_gi_bill)
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "toggle-indicator" + (inst.use_gi_bill ? " on" : "")
-      }, inst.use_gi_bill ? "✓" : ""), /*#__PURE__*/React.createElement("span", null, inst.use_gi_bill ? "Yes — pursue a degree after service" : "No — enter civilian workforce directly"))), inst.use_gi_bill && /*#__PURE__*/React.createElement("div", {
+      }, /*#__PURE__*/React.createElement("label", null, "Will you use the GI Bill for college after serving?"), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: "flex",
+          gap: 12,
+          marginBottom: 12
+        }
+      }, /*#__PURE__*/React.createElement("button", {
+        className: "btn" + (inst.use_gi_bill ? " btn-primary" : " btn-secondary"),
+        onClick: () => updateInstance(inst.instance_id, "use_gi_bill", true),
+        style: {
+          flex: 1
+        }
+      }, "Yes"), /*#__PURE__*/React.createElement("button", {
+        className: "btn" + (!inst.use_gi_bill ? " btn-primary" : " btn-secondary"),
+        onClick: () => updateInstance(inst.instance_id, "use_gi_bill", false),
+        style: {
+          flex: 1
+        }
+      }, "No"))), inst.use_gi_bill && /*#__PURE__*/React.createElement("div", {
         className: "form-group" + (showMissing && missingFieldNames.has("gi_bill_major") ? " field-missing" : "")
-      }, /*#__PURE__*/React.createElement("label", null, "Post-service major"), /*#__PURE__*/React.createElement("select", {
+      }, /*#__PURE__*/React.createElement("label", null, "What will you study after serving?"), /*#__PURE__*/React.createElement("select", {
         className: "form-select",
         value: inst.gi_bill_major,
         onChange: e => updateInstance(inst.instance_id, "gi_bill_major", e.target.value)
@@ -1726,7 +1744,18 @@ function QuizPage({
       }, "Select a major..."), ["computer_science", "engineering", "biology", "environmental_science", "nursing", "kinesiology", "business_finance", "accounting", "marketing", "psychology", "criminal_justice", "political_science", "communications", "english", "social_work", "education", "art_design", "undecided"].map(m => /*#__PURE__*/React.createElement("option", {
         key: m,
         value: m
-      }, LABEL_MAP[m])))))));
+      }, LABEL_MAP[m])))), !inst.use_gi_bill && /*#__PURE__*/React.createElement("div", {
+        className: "form-group" + (showMissing && missingFieldNames.has("civilian_industry") ? " field-missing" : "")
+      }, /*#__PURE__*/React.createElement("label", null, "What industry will you work in after serving?"), /*#__PURE__*/React.createElement("p", {
+        className: "field-hint"
+      }, "Veterans receive a 10% hiring premium over standard entry-level wages."), /*#__PURE__*/React.createElement("select", {
+        className: "form-select",
+        value: inst.civilian_industry,
+        onChange: e => updateInstance(inst.instance_id, "civilian_industry", e.target.value)
+      }, ["retail", "logistics", "food_service", "admin", "manufacturing", "security", "landscaping", "customer_service", "delivery_driver", "janitorial", "home_health_aide", "childcare"].map(i => /*#__PURE__*/React.createElement("option", {
+        key: i,
+        value: i
+      }, LABEL_MAP[i])))))));
     }), instances.length === 0 && /*#__PURE__*/React.createElement("p", {
       style: {
         color: "var(--text-dim)",
@@ -2494,7 +2523,82 @@ function ResultsPage({
       lineHeight: 1.8,
       fontSize: 14
     }
-  }, sorted.length >= 2 && (() => {
+  }, sorted.length === 1 && (() => {
+    try {
+      const r = sorted[0];
+      if (!r || !r.snapshots || !r.summary) return /*#__PURE__*/React.createElement("p", null, "No data available.");
+      const rid = r.scenario.instance_id || r.scenario.path_type;
+      const lastSnap = r.snapshots[r.snapshots.length - 1];
+      if (!lastSnap) return /*#__PURE__*/React.createElement("p", null, "No snapshot data available.");
+      const finalNW = lastSnap.net_worth;
+      const totalEarn = r.summary.total_earnings;
+      const debtFree = r.summary.year_debt_free;
+      const totalEd = r.summary.total_cost_of_education;
+      const posNW = r.summary.year_positive_net_worth;
+      return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 12
+        }
+      }, "Over ", projYears, " years, ", /*#__PURE__*/React.createElement("strong", {
+        style: {
+          color: colorMap[rid]
+        }
+      }, labelMap[rid]), " reaches a projected net worth of ", /*#__PURE__*/React.createElement("strong", null, fmtFull(finalNW)), " with total lifetime earnings of ", /*#__PURE__*/React.createElement("strong", null, fmtFull(totalEarn)), "."), debtFree ? /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 12
+        }
+      }, /*#__PURE__*/React.createElement("strong", null, "Debt timeline:"), " Student debt is paid off at age ", debtFree, ".", totalEd > 0 ? ` Total education cost: ${fmtFull(totalEd)}.` : "") : null, !debtFree && totalEd === 0 ? /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 12
+        }
+      }, /*#__PURE__*/React.createElement("strong", null, "No student debt"), " \u2014 all income goes toward living expenses, savings, and investments from day one.") : null, posNW ? /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 12
+        }
+      }, /*#__PURE__*/React.createElement("strong", null, "Positive net worth"), " reached at age ", posNW, ".") : null, r.summary.debt_burden_ratio > 0 ? /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 12
+        }
+      }, /*#__PURE__*/React.createElement("strong", null, "Peak debt burden:"), " ", (r.summary.debt_burden_ratio * 100).toFixed(0), "% of take-home pay", r.summary.debt_burden_ratio > 0.15 ? " (high)" : r.summary.debt_burden_ratio > 0.10 ? " (moderate)" : " (manageable)", ".", /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: "var(--text-dim)",
+          fontSize: 12
+        }
+      }, " Under 10% is comfortable; over 15% can be a strain.")) : null, r.summary.loan_extended ? /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 12,
+          padding: "10px 14px",
+          background: "rgba(245,158,11,0.08)",
+          border: "1px solid rgba(245,158,11,0.25)",
+          borderRadius: 8,
+          fontSize: 13
+        }
+      }, /*#__PURE__*/React.createElement("strong", {
+        style: {
+          color: "#f59e0b"
+        }
+      }, "Loan repayment adjusted:"), " ", (() => {
+        const lastS = r.snapshots[r.snapshots.length - 1];
+        if (lastS && lastS.debt_remaining > 0) {
+          return `Selected ${r.summary.loan_term_original}-year repayment, but income never exceeds expenses enough to pay off the loan within the projection window.`;
+        }
+        return `Selected ${r.summary.loan_term_original}-year repayment, but income-based payments extend it to ~${r.summary.loan_term_actual} years.`;
+      })()) : null, /*#__PURE__*/React.createElement("p", {
+        style: {
+          color: "var(--text-dim)",
+          fontStyle: "italic",
+          marginTop: 16
+        }
+      }, "Add more paths to compare \u2014 the real power of this tool is seeing how different choices stack up side by side."));
+    } catch (err) {
+      console.error("Key Insights single-path error:", err);
+      return /*#__PURE__*/React.createElement("p", {
+        style: {
+          color: "var(--text-dim)"
+        }
+      }, "Unable to generate insights for this path.");
+    }
+  })(), sorted.length >= 2 && (() => {
     const byNW = [...sorted].sort((a, b) => b.snapshots[b.snapshots.length - 1].net_worth - a.snapshots[a.snapshots.length - 1].net_worth);
     const best = byNW[0],
       worst = byNW[byNW.length - 1];
@@ -2598,14 +2702,123 @@ function ResultsPage({
   })())), (() => {
     const effectiveTab = tableTab || results[0]?.scenario.instance_id || results[0]?.scenario.path_type || "";
     const activeResult = results.find(r => (r.scenario.instance_id || r.scenario.path_type) === effectiveTab);
-    const pathFormulas = {
-      college: "Income during school = part-time work earnings. After graduation: Starting Salary × (1 + Growth Rate)^years of experience. Grace period year = 50% of starting salary.",
-      cc_transfer: "Same as 4-year college, but starting salary is ~2% lower for CC transfers. First 2 years at community college tuition rates.",
-      trade: "Apprentice wages increase each year (40→60→75→90% of journeyman rate). After apprenticeship: Journeyman Salary × (1 + Growth Rate)^years.",
-      workforce: "Starting Wage × (1.02)^years. No education costs or debt. Income begins immediately.",
-      military: "Active duty pay during service (E1→E4 progression). GI Bill housing allowance (~$28k/yr, tax-exempt) during school. Then civilian career salary."
+
+    // Build a path-specific reading guide using actual scenario data
+    const buildGuide = result => {
+      if (!result) return null;
+      const pt = result.scenario.path_type;
+      const snaps = result.snapshots;
+      const startSal = result.scenario.starting_salary || 0;
+      const fmtK = v => v >= 1000 ? "$" + (v / 1000).toFixed(0) + "k" : "$" + Math.round(v);
+      const fmtD = v => "$" + Math.round(v).toLocaleString();
+      const schoolYrs = result.scenario.years_in_school || 0;
+      const startAge = result.scenario.start_age || 18;
+      if (pt === "college") {
+        const ptIncome = snaps[0]?.gross_income || 0;
+        const graceSal = snaps[schoolYrs]?.gross_income || 0;
+        const fullSal = snaps[schoolYrs + 1]?.gross_income || startSal;
+        const peakDebt = Math.max(...snaps.map(s => s.debt_remaining));
+        return {
+          phases: [{
+            label: `Ages ${startAge}–${startAge + schoolYrs - 1} · School`,
+            desc: ptIncome > 0 ? `Full-time student. Part-time income (${fmtK(ptIncome)}/yr) goes toward tuition + room & board first, reducing loans. 529 savings cover remaining costs.` : `Full-time student. No part-time work. Tuition + room & board paid from 529 savings, remainder becomes student loans.`
+          }, {
+            label: `Age ${startAge + schoolYrs} · Grace Period`,
+            desc: `Job search phase. You earn roughly half your starting salary (${fmtK(graceSal)}). Loan interest still accrues but no payments yet.`
+          }, {
+            label: `Age ${startAge + schoolYrs + 1}+ · Career`,
+            desc: `Full-time career begins at ${fmtD(fullSal)}/yr. Salary grows annually. Loan payments start, and you begin saving and investing.`
+          }],
+          tip: peakDebt > 0 ? `Peak student debt reaches ${fmtD(peakDebt)} — watch for when it drops to $0 in the table.` : `No student loans needed — 529 savings and part-time income covered all costs.`
+        };
+      }
+      if (pt === "cc_transfer") {
+        const ptIncome = snaps[0]?.gross_income || 0;
+        const fullSal = snaps[schoolYrs + 1]?.gross_income || startSal;
+        const peakDebt = Math.max(...snaps.map(s => s.debt_remaining));
+        return {
+          phases: [{
+            label: `Ages ${startAge}–${startAge + 1} · Community College`,
+            desc: `Lower tuition years.${ptIncome > 0 ? ` Part-time income (${fmtK(ptIncome)}/yr) offsets costs.` : ""} This is where you save the most vs. 4-year college.`
+          }, {
+            label: `Ages ${startAge + 2}–${startAge + 3} · University`,
+            desc: `Transfer to 4-year school at higher tuition. Part-time income continues to help offset costs.`
+          }, {
+            label: `Age ${startAge + schoolYrs}+ · Career`,
+            desc: `Starting salary is ~2% lower than direct 4-year grads (${fmtD(fullSal)}/yr). Less debt usually offsets the small salary gap.`
+          }],
+          tip: peakDebt > 0 ? `Peak debt: ${fmtD(peakDebt)} — typically lower than straight 4-year college.` : `No student loans needed.`
+        };
+      }
+      if (pt === "trade") {
+        const yr1Income = snaps[0]?.gross_income || 0;
+        const yr4Income = snaps[Math.min(3, snaps.length - 1)]?.gross_income || 0;
+        const journeymanIncome = snaps[Math.min(4, snaps.length - 1)]?.gross_income || startSal;
+        const peakDebt = Math.max(...snaps.map(s => s.debt_remaining));
+        return {
+          phases: [{
+            label: `Age ${startAge} · Apprentice Year 1`,
+            desc: `Start earning immediately at ${fmtK(yr1Income)}/yr while learning. Trade school costs are low (one-time, not per year).`
+          }, {
+            label: `Ages ${startAge + 1}–${startAge + 3} · Apprentice Years 2–4`,
+            desc: `Wages increase each year as skills grow. By year 4 you earn ${fmtK(yr4Income)}/yr — roughly 85% of journeyman pay.`
+          }, {
+            label: `Age ${startAge + 4}+ · Journeyman`,
+            desc: `Full journeyman salary kicks in at ${fmtD(journeymanIncome)}/yr. No grace period — you were already working.`
+          }],
+          tip: peakDebt > 0 ? `Small loan of ${fmtD(peakDebt)} for trade school — typically paid off within 2–3 years.` : `No loans needed — family savings covered trade school.`
+        };
+      }
+      if (pt === "workforce") {
+        const startIncome = snaps[0]?.gross_income || 0;
+        const yr10Income = snaps[Math.min(9, snaps.length - 1)]?.gross_income || 0;
+        return {
+          phases: [{
+            label: `Age ${startAge} · Day 1`,
+            desc: `Start earning full-time immediately at ${fmtD(startIncome)}/yr. No tuition, no loans, no waiting.`
+          }, {
+            label: `Every year after`,
+            desc: `Salary grows ~0.5% per year (above inflation). By age ${startAge + 10}, you earn ${fmtD(yr10Income)}/yr. Growth is slower than degree paths, but you have a 4-year head start.`
+          }],
+          tip: `No debt at any point. Your investments compound from day one — that head start matters.`
+        };
+      }
+      if (pt === "military") {
+        const yr1Income = snaps[0]?.gross_income || 0;
+        const serviceYrs = schoolYrs;
+        const isGiBill = (result.scenario.gi_bill_tuition_covered_annual || 0) > 0 || (result.scenario.gi_bill_housing_monthly || 0) > 0;
+        if (isGiBill) {
+          const giBillIncome = snaps[Math.min(serviceYrs, snaps.length - 1)]?.gross_income || 0;
+          const postDegreeIncome = snaps[Math.min(serviceYrs + 4, snaps.length - 1)]?.gross_income || startSal;
+          return {
+            phases: [{
+              label: `Ages ${startAge}–${startAge + serviceYrs - 1} · Active Duty`,
+              desc: `Military pay starts at ${fmtK(yr1Income)}/yr (base + housing allowance). Most living expenses covered — save aggressively.`
+            }, {
+              label: `Ages ${startAge + serviceYrs}–${startAge + serviceYrs + 3} · GI Bill School`,
+              desc: `Free tuition + tax-free housing allowance of ${fmtK(giBillIncome)}/yr. No student loans.`
+            }, {
+              label: `Age ${startAge + serviceYrs + 4}+ · Career`,
+              desc: `Post-degree career at ${fmtD(postDegreeIncome)}/yr. Same salary as civilian grads in your major.`
+            }],
+            tip: `$0 student debt. The GI Bill housing income shown is tax-exempt — your take-home equals your gross during those years.`
+          };
+        } else {
+          const civIncome = snaps[Math.min(serviceYrs, snaps.length - 1)]?.gross_income || startSal;
+          return {
+            phases: [{
+              label: `Ages ${startAge}–${startAge + serviceYrs - 1} · Active Duty`,
+              desc: `Military pay starts at ${fmtK(yr1Income)}/yr. Most living expenses covered.`
+            }, {
+              label: `Age ${startAge + serviceYrs}+ · Civilian Career`,
+              desc: `Enter workforce with 10% veteran hiring premium. Starting at ${fmtD(civIncome)}/yr in your chosen industry.`
+            }],
+            tip: `No school costs, no debt. Your military savings give you a strong investment head start.`
+          };
+        }
+      }
+      return null;
     };
-    const sharedFormulas = "Savings = max(0, (Net Income − Living Expenses − Loan Payment) × Savings Rate)\nInvestments = Previous Balance × (1 + Return Rate) + Annual Savings\nNet Worth = Investment Balance − Remaining Debt";
     return /*#__PURE__*/React.createElement("div", {
       className: "card",
       style: {
@@ -2659,7 +2872,54 @@ function ResultsPage({
           whiteSpace: "nowrap"
         }
       }, labelMap[id] || id);
-    })), activeResult && /*#__PURE__*/React.createElement("div", {
+    })), activeResult && (() => {
+      const guide = buildGuide(activeResult);
+      if (!guide) return null;
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: "14px 20px",
+          background: "var(--bg)",
+          borderBottom: "1px solid var(--border)"
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 13,
+          fontWeight: 600,
+          marginBottom: 10,
+          color: "var(--text)"
+        }
+      }, "How to read this table"), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          gap: 8
+        }
+      }, guide.phases.map((p, i) => /*#__PURE__*/React.createElement("div", {
+        key: i,
+        style: {
+          fontSize: 12,
+          lineHeight: 1.5
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontWeight: 600,
+          color: "var(--accent)"
+        }
+      }, p.label, ":"), " ", /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: "var(--text-dim)"
+        }
+      }, p.desc)))), guide.tip && /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 10,
+          fontSize: 12,
+          color: "var(--text-dim)",
+          fontStyle: "italic",
+          borderLeft: "3px solid var(--accent)",
+          paddingLeft: 10
+        }
+      }, guide.tip));
+    })(), activeResult && /*#__PURE__*/React.createElement("div", {
       style: {
         overflowX: "auto",
         padding: "0 0 16px 0"
@@ -2756,32 +3016,75 @@ function ResultsPage({
         fontWeight: 600,
         color: s.net_worth >= 0 ? "#4ade80" : "#f87171"
       }
-    }, fmtFull(s.net_worth)))))), /*#__PURE__*/React.createElement("div", {
-      style: {
-        padding: "16px 20px",
-        borderTop: "1px solid var(--border)",
-        background: "var(--bg)"
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontWeight: 600,
-        fontSize: 13,
-        marginBottom: 8
-      }
-    }, "How these numbers are calculated"), /*#__PURE__*/React.createElement("p", {
-      style: {
-        fontSize: 12,
-        color: "var(--text-dim)",
-        marginBottom: 8,
-        whiteSpace: "pre-line"
-      }
-    }, /*#__PURE__*/React.createElement("strong", null, "Income:"), " ", pathFormulas[activeResult.scenario.path_type] || "Based on path-specific income model."), /*#__PURE__*/React.createElement("p", {
-      style: {
-        fontSize: 12,
-        color: "var(--text-dim)",
-        whiteSpace: "pre-line"
-      }
-    }, /*#__PURE__*/React.createElement("strong", null, "Shared formulas:"), "\n", sharedFormulas)))));
+    }, fmtFull(s.net_worth)))))), activeResult && (() => {
+      const pt = activeResult.scenario.path_type;
+      const incomeExplain = pt === "college" ? "Starting salary is based on median earnings for your chosen major and region (e.g., a CS grad in the Northeast earns more than in the Midwest). Salary grows each year at a major-specific rate above inflation. During school, income reflects part-time work (if enabled). The first year after graduation is a grace period — you earn roughly half a year's salary while job searching." : pt === "cc_transfer" ? "Same salary data as 4-year college, but CC transfer grads start ~2% lower to reflect employer preferences. During community college and university years, income reflects part-time work (if enabled). Grace period applies after graduation." : pt === "trade" ? "Apprentice wages start at ~40% of journeyman pay and increase each year (55%, 70%, 85%). Journeyman salary is based on your trade and region — for example, electricians earn differently in the Southeast vs. Northeast. You earn from day one with no grace period." : pt === "workforce" ? "Starting wage is based on your chosen industry and region (e.g., manufacturing in the Midwest vs. retail nationally). Wages grow ~0.5% per year above inflation — slower than degree paths, but you start earning immediately with no school costs." : pt === "military" ? "Active duty pay is based on E-1 through E-4 base pay plus Basic Allowance for Housing (BAH). Pay is nationally standardized. If using the GI Bill, post-service income matches civilian college grads in your major. Without the GI Bill, post-service pay uses your chosen industry wage plus a 10% veteran hiring premium." : "";
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: "14px 20px",
+          borderTop: "1px solid var(--border)",
+          background: "var(--bg)",
+          fontSize: 12,
+          color: "var(--text-dim)",
+          lineHeight: 1.7
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontWeight: 600,
+          color: "var(--text)",
+          marginBottom: 8,
+          fontSize: 13
+        }
+      }, "How these numbers are calculated"), /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 8
+        }
+      }, /*#__PURE__*/React.createElement("strong", {
+        style: {
+          color: "var(--text)"
+        }
+      }, "Income:"), " ", incomeExplain), /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 8
+        }
+      }, /*#__PURE__*/React.createElement("strong", {
+        style: {
+          color: "var(--text)"
+        }
+      }, "Net income:"), " Gross pay minus an estimated tax rate (~22%), giving your take-home pay."), /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 8
+        }
+      }, /*#__PURE__*/React.createElement("strong", {
+        style: {
+          color: "var(--text)"
+        }
+      }, "Living expenses:"), " Based on your region's cost of living. Reduced by half during the grace period year (you graduate mid-year)."), /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 8
+        }
+      }, /*#__PURE__*/React.createElement("strong", {
+        style: {
+          color: "var(--text)"
+        }
+      }, "Savings:"), " Whatever is left after expenses and loan payments, multiplied by your savings rate. During school, part-time income goes toward tuition first."), /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 8
+        }
+      }, /*#__PURE__*/React.createElement("strong", {
+        style: {
+          color: "var(--text)"
+        }
+      }, "Investments:"), " Last year's balance grows at 6% (real return above inflation), plus this year's new savings."), /*#__PURE__*/React.createElement("p", {
+        style: {
+          marginBottom: 0
+        }
+      }, /*#__PURE__*/React.createElement("strong", {
+        style: {
+          color: "var(--text)"
+        }
+      }, "Net worth:"), " Investment balance minus all remaining debt (student loans + any consumer debt)."));
+    })())));
   })(), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
@@ -2840,7 +3143,16 @@ function ResultsPage({
     }
   }, "Failed to save. Please try again.")), /*#__PURE__*/React.createElement(HowItWorks, null), /*#__PURE__*/React.createElement("div", {
     className: "footer"
-  }, "Horizon18 \u2014 For educational purposes only. This tool does not provide financial advice.", /*#__PURE__*/React.createElement("br", null), "All figures are in today's dollars (inflation-adjusted). A dollar shown at any age has the same purchasing power as a dollar today.", /*#__PURE__*/React.createElement("br", null), "Projections use simplified assumptions and generalized data sources (BLS, College Scorecard, NACE, DFAS)."));
+  }, "Horizon18 \u2014 For educational purposes only. This tool does not provide financial advice.", /*#__PURE__*/React.createElement("br", null), "All figures are in today's dollars (inflation-adjusted). A dollar shown at any age has the same purchasing power as a dollar today.", /*#__PURE__*/React.createElement("br", null), "Projections use simplified assumptions and generalized data sources (BLS, College Scorecard, NACE, DFAS).", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("a", {
+    href: "mailto:willielabs8888@gmail.com?subject=Horizon18 Feedback",
+    style: {
+      color: "var(--accent)",
+      textDecoration: "none",
+      fontSize: 13,
+      marginTop: 8,
+      display: "inline-block"
+    }
+  }, "Contact Us")));
 }
 
 // ============================================================
@@ -2901,13 +3213,13 @@ function HowItWorks() {
     className: "hiw-timeline"
   }, /*#__PURE__*/React.createElement("div", {
     className: "hiw-timeline-step"
-  }, /*#__PURE__*/React.createElement("strong", null, "Years 1\u20134 (ages 18\u201321):"), " Full-time student. You pay tuition + room & board each year. Optional part-time work (default: ~$8,000/year if enabled; you can adjust in path settings)."), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("strong", null, "Years 1\u20134 (ages 18\u201321):"), " Full-time student. You pay tuition + room & board each year. Optional part-time work (default: ~$8,000/year if enabled). Part-time income is applied toward school costs first, reducing the amount you need to borrow. Any remaining income after school costs are covered is saved at your designated savings rate."), /*#__PURE__*/React.createElement("div", {
     className: "hiw-timeline-step"
   }, /*#__PURE__*/React.createElement("strong", null, "Year 5 (age 22):"), " Grace period \u2014 6 months after graduation before loan payments begin. You start job searching; we count half a year of salary."), /*#__PURE__*/React.createElement("div", {
     className: "hiw-timeline-step"
   }, /*#__PURE__*/React.createElement("strong", null, "Year 6+ (age 23+):"), " Full-time career. Salary grows each year based on your major. You pay off loans, save, and invest.")), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Education cost:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Total Cost = (Annual Tuition \xD7 4 years) + (Room & Board \xD7 4 years)", /*#__PURE__*/React.createElement("br", null), "Loan Amount = Total Cost \u2212 Family Savings (if any)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example (Public In-State, off-campus):", /*#__PURE__*/React.createElement("br", null), "= ($11,371 \xD7 4) + ($9,600 \xD7 4) = $83,884", /*#__PURE__*/React.createElement("br", null), "With $0 savings \u2192 you borrow $83,884", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Family savings are applied to education costs first. Any excess becomes your starting investment."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Income after graduation:")), /*#__PURE__*/React.createElement("div", {
+  }, "Total Cost = (Annual Tuition \xD7 4 years) + (Room & Board \xD7 4 years)", /*#__PURE__*/React.createElement("br", null), "Each year: Net School Cost = Year Cost \u2212 Part-Time Income (after tax)", /*#__PURE__*/React.createElement("br", null), "Then: 529 savings cover what they can, and the remainder becomes student loans.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example (Public In-State, off-campus, $8k part-time):", /*#__PURE__*/React.createElement("br", null), "Year cost = $11,371 + $9,600 = $20,971", /*#__PURE__*/React.createElement("br", null), "Part-time after tax = $8,000 \xD7 0.82 = $6,560", /*#__PURE__*/React.createElement("br", null), "Net cost = $20,971 \u2212 $6,560 = $14,411 (covered by 529/loans)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Family savings (529) are applied to remaining costs first. Any excess becomes your starting investment."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Income after graduation:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Salary in Year N = Starting Salary \xD7 (1 + Growth Rate)^(years working)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example (STEM major):", /*#__PURE__*/React.createElement("br", null), "Year 1 salary = $80,000", /*#__PURE__*/React.createElement("br", null), "Year 5 salary = $80,000 \xD7 1.02^4 = $86,595", /*#__PURE__*/React.createElement("br", null), "Real growth rate varies by major: CS 2%, Engineering 1.5%, Business 1%, most others 0.5%"), /*#__PURE__*/React.createElement("div", {
     className: "hiw-note"
@@ -2919,9 +3231,9 @@ function HowItWorks() {
     className: "hiw-timeline"
   }, /*#__PURE__*/React.createElement("div", {
     className: "hiw-timeline-step"
-  }, /*#__PURE__*/React.createElement("strong", null, "Years 1\u20132 (ages 18\u201319):"), " Community college at much lower tuition. Same room & board costs."), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("strong", null, "Years 1\u20132 (ages 18\u201319):"), " Community college at much lower tuition. Same room & board costs. Optional part-time work (default: ~$10,000/year if enabled). Part-time income goes toward school costs first, then savings."), /*#__PURE__*/React.createElement("div", {
     className: "hiw-timeline-step"
-  }, /*#__PURE__*/React.createElement("strong", null, "Years 3\u20134 (ages 20\u201321):"), " Transfer to a 4-year university. Pay university tuition for the final 2 years."), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("strong", null, "Years 3\u20134 (ages 20\u201321):"), " Transfer to a 4-year university. Pay university tuition for the final 2 years. Part-time income continues to offset costs."), /*#__PURE__*/React.createElement("div", {
     className: "hiw-timeline-step"
   }, /*#__PURE__*/React.createElement("strong", null, "Year 5+ (age 22+):"), " Same career path as a 4-year grad, but starting salary is 2% lower (reflects minor hiring differences for transfer students).")), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Cost savings vs. straight 4-year:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
@@ -2945,7 +3257,7 @@ function HowItWorks() {
     className: "hiw-formula"
   }, "Year 1: $35,000 (about 52% of journeyman pay)", /*#__PURE__*/React.createElement("br", null), "Year 2: $42,000 (62%)", /*#__PURE__*/React.createElement("br", null), "Year 3: $49,000 (72%)", /*#__PURE__*/React.createElement("br", null), "Year 4: $56,000 (83%)", /*#__PURE__*/React.createElement("br", null), "Year 5+: $67,810 \xD7 (1.005)^years as journeyman"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Education cost:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Trade school total (one-time, not per year):", /*#__PURE__*/React.createElement("br", null), "Electrician: $14,640 | Plumber: $12,500 | HVAC: $12,500", /*#__PURE__*/React.createElement("br", null), "Carpenter: $12,550 | Welder: $12,000 | Automotive Tech: $12,500", /*#__PURE__*/React.createElement("br", null), "Diesel Mechanic: $13,000 | CNC Machinist: $12,750 | Lineworker: $14,500", /*#__PURE__*/React.createElement("br", null), "Ironworker: $13,200 | Elevator Mechanic: $15,000 | Heavy Equipment Op: $12,200", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Journeyman Salaries (Year 5+):", /*#__PURE__*/React.createElement("br", null), "Electrician: $67,810 | Plumber: $62,430 | HVAC: $61,040", /*#__PURE__*/React.createElement("br", null), "Carpenter: $54,650 | Welder: $52,810 | Automotive Tech: $45,230", /*#__PURE__*/React.createElement("br", null), "Diesel Mechanic: $56,780 | CNC Machinist: $59,400 | Lineworker: $72,150", /*#__PURE__*/React.createElement("br", null), "Ironworker: $64,320 | Elevator Mechanic: $82,900 | Heavy Equipment Op: $58,620", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Loan term: 5 years (shorter than college loans)", /*#__PURE__*/React.createElement("br", null), "No grace period \u2014 you're already working"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Why trades often win early:"), " You earn income from age 18 with minimal debt. College grads don't start full-time earning until age 22-23 and carry much larger loans."), /*#__PURE__*/React.createElement("div", {
+  }, "Trade school total (one-time, not per year):", /*#__PURE__*/React.createElement("br", null), "Electrician: $14,640 | Plumber: $12,500 | HVAC: $12,500", /*#__PURE__*/React.createElement("br", null), "Carpenter: $12,550 | Welder: $15,000 | Automotive Tech: $20,000", /*#__PURE__*/React.createElement("br", null), "Diesel Mechanic: $18,000 | CNC Machinist: $15,000 | Lineworker: $10,000", /*#__PURE__*/React.createElement("br", null), "Ironworker: $12,000 | Elevator Mechanic: $12,000 | Heavy Equipment Op: $10,000", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Journeyman Salaries (Year 5+):", /*#__PURE__*/React.createElement("br", null), "Electrician: $67,810 | Plumber: $64,960 | HVAC: $54,100", /*#__PURE__*/React.createElement("br", null), "Carpenter: $60,083 | Welder: $49,000 | Automotive Tech: $48,000", /*#__PURE__*/React.createElement("br", null), "Diesel Mechanic: $58,000 | CNC Machinist: $49,970 | Lineworker: $82,340", /*#__PURE__*/React.createElement("br", null), "Ironworker: $62,000 | Elevator Mechanic: $99,000 | Heavy Equipment Op: $55,280", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Loan term: 5 years (shorter than college loans)", /*#__PURE__*/React.createElement("br", null), "No grace period \u2014 you're already working"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Why trades often win early:"), " You earn income from age 18 with minimal debt. College grads don't start full-time earning until age 22-23 and carry much larger loans."), /*#__PURE__*/React.createElement("div", {
     className: "hiw-note"
   }, "Source: BLS wage data, Dept. of Labor apprenticeship records, industry training providers.")), /*#__PURE__*/React.createElement(HiwDropdown, {
     icon: "\uD83D\uDCBC",
@@ -2959,7 +3271,7 @@ function HowItWorks() {
     className: "hiw-timeline-step"
   }, /*#__PURE__*/React.createElement("strong", null, "Every year after:"), " Your salary grows at ~0.5% per year in real terms (above inflation). This is slower growth than paths requiring a degree, but you have a head start.")), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Starting wages by industry:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Retail:        $32,240/year", /*#__PURE__*/React.createElement("br", null), "Logistics:     $31,137/year", /*#__PURE__*/React.createElement("br", null), "Food Service:  $28,245/year", /*#__PURE__*/React.createElement("br", null), "Office/Admin:  $35,419/year", /*#__PURE__*/React.createElement("br", null), "Manufacturing: $34,320/year"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Income growth:")), /*#__PURE__*/React.createElement("div", {
+  }, "Retail: $32,240 | Logistics: $36,500 | Food Service: $28,245", /*#__PURE__*/React.createElement("br", null), "Admin: $35,419 | Manufacturing: $34,320 | Security: $36,530", /*#__PURE__*/React.createElement("br", null), "Customer Service: $38,200 | Delivery Driver: $38,180", /*#__PURE__*/React.createElement("br", null), "Home Health Aide: $33,530 | Childcare: $28,520", /*#__PURE__*/React.createElement("br", null), "Landscaping: $34,480 | Janitorial: $31,990"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Income growth:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Salary in Year N = Starting Wage \xD7 (1.005)^N", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example (Admin, Midwest):", /*#__PURE__*/React.createElement("br", null), "Start: $35,419 \xD7 0.95 (regional) = $33,648", /*#__PURE__*/React.createElement("br", null), "Age 30: $33,648 \xD7 1.005^12 = $35,712"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "The trade-off:"), " No debt and immediate income, but lower lifetime earnings. Over 30+ years, the salary ceiling is lower than degree-requiring paths."), /*#__PURE__*/React.createElement("div", {
     className: "hiw-note"
@@ -2993,15 +3305,15 @@ function HowItWorks() {
     className: "hiw-formula"
   }, "Net Income = Gross Income \xD7 (1 \u2212 Tax Rate)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: $60,000 gross \xD7 (1 \u2212 0.18) = $49,200 take-home", /*#__PURE__*/React.createElement("br", null), "Default tax rate: 18% (simplified flat rate)"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83C\uDFE6 Student Loan Payments:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Standard Amortization Formula:", /*#__PURE__*/React.createElement("br", null), "Monthly Payment = P \xD7 [r(1+r)^n] / [(1+r)^n \u2212 1]", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Don't worry if that looks scary! Here's what the letters mean:", /*#__PURE__*/React.createElement("br", null), "P = your total loan balance when payments start", /*#__PURE__*/React.createElement("br", null), "r = monthly interest rate (4.0% real annual \xF7 12 months = 0.333%)", /*#__PURE__*/React.createElement("br", null), "n = total number of monthly payments (10 years \xD7 12 = 120 payments)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: $83,884 loan at 4.0% real for 10 years", /*#__PURE__*/React.createElement("br", null), "Monthly payment \u2248 $849", /*#__PURE__*/React.createElement("br", null), "Total paid over 10 years \u2248 $101,880", /*#__PURE__*/React.createElement("br", null), "Total interest \u2248 $17,996"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\u26A0\uFE0F Loan payments are capped at what you can afford:")), /*#__PURE__*/React.createElement("div", {
+  }, "Standard Amortization Formula:", /*#__PURE__*/React.createElement("br", null), "Monthly Payment = P \xD7 [r(1+r)^n] / [(1+r)^n \u2212 1]", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Don't worry if that looks scary! Here's what the letters mean:", /*#__PURE__*/React.createElement("br", null), "P = your total loan balance when payments start", /*#__PURE__*/React.createElement("br", null), "r = monthly interest rate (4.0% real annual \xF7 12 months = 0.333%)", /*#__PURE__*/React.createElement("br", null), "n = total number of monthly payments (10 years \xD7 12 = 120 payments)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: $60,000 loan at 4.0% real for 10 years", /*#__PURE__*/React.createElement("br", null), "Monthly payment \u2248 $607", /*#__PURE__*/React.createElement("br", null), "Total paid over 10 years \u2248 $72,840", /*#__PURE__*/React.createElement("br", null), "Total interest \u2248 $12,840"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\u26A0\uFE0F Loan payments are capped at what you can afford:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Actual Payment = min(Required Payment, Net Income \u2212 Living Expenses)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "If your income minus expenses is less than the required monthly payment,", /*#__PURE__*/React.createElement("br", null), "the simulation only pays what you can actually afford.", /*#__PURE__*/React.createElement("br", null), "The remaining balance continues accruing interest, and your loan takes", /*#__PURE__*/React.createElement("br", null), "longer to pay off than the originally selected term.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Required payment = $953/month ($11,436/year)", /*#__PURE__*/React.createElement("br", null), "But disposable income = $8,000/year", /*#__PURE__*/React.createElement("br", null), "\u2192 You pay $8,000. The shortfall stays on the loan with interest."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\u26A0\uFE0F Interest grows while you're in school:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Each year in school: Balance = Balance \xD7 (1 + 0.040)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Borrow $83,884 freshman year", /*#__PURE__*/React.createElement("br", null), "After 4 years of accrual: $83,884 \xD7 1.040^4 \u2248 $98,148", /*#__PURE__*/React.createElement("br", null), "That's $14,264 in interest (real dollars) before you make a single payment!"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCC8 Investment Growth (compound interest):")), /*#__PURE__*/React.createElement("div", {
+  }, "Each year in school: Balance = Balance \xD7 (1 + 0.040)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "New loans are taken out each year (after part-time income and 529 savings", /*#__PURE__*/React.createElement("br", null), "are applied). All outstanding loan balances accrue interest while you're", /*#__PURE__*/React.createElement("br", null), "in school \u2014 so earlier borrowing costs more than later borrowing.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Borrow $15,000/year for 4 years at 4.0% real", /*#__PURE__*/React.createElement("br", null), "By graduation your balance is ~$63,650 (vs $60,000 borrowed)", /*#__PURE__*/React.createElement("br", null), "That's ~$3,650 in interest before you make a single payment."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCC8 Investment Growth (compound interest):")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "Each year: Investments = (Previous Balance \xD7 1.06) + New Savings", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Default return rate: 6% per year (real, after inflation)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Example: Save $5,000/year for 30 years at 6% real", /*#__PURE__*/React.createElement("br", null), "Total contributed: $150,000", /*#__PURE__*/React.createElement("br", null), "Final balance: ~$395,000 in today's dollars (compound interest earned you $245,000!)"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCB5 How much you save each year:")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
-  }, "Annual Savings = max(0, (Net Income \u2212 Living Expenses \u2212 Loan Payment) \xD7 Savings Rate)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "The 'Realized Savings Rate' chart shows what percentage of income was actually saved \u2014 which may be lower than your target if expenses and loan payments are high."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCB3 Consumer Debt (deficit spending):")), /*#__PURE__*/React.createElement("div", {
+  }, "Annual Savings = max(0, (Net Income \u2212 School Cost Offset \u2212 Living Expenses \u2212 Loan Payment) \xD7 Savings Rate)", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "During school years, part-time income is applied toward tuition and room & board first. Only the remaining income (if any) flows into the savings calculation above.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "The 'Realized Savings Rate' chart shows what percentage of income was actually saved \u2014 which may be lower than your target if expenses and loan payments are high."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCB3 Consumer Debt (deficit spending):")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
   }, "If your expenses + loan payments exceed your income, you run a deficit.", /*#__PURE__*/React.createElement("br", null), "The simulation draws down investments first. If investments hit $0,", /*#__PURE__*/React.createElement("br", null), "the remaining deficit becomes consumer debt (think credit cards).", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "Consumer debt accrues ~15.5% annual interest (real rate).", /*#__PURE__*/React.createElement("br", null), "During school years, shortfalls go to student loans instead (lower rate).", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("strong", null, "Payoff priority:"), " Consumer debt is paid off first because of its", /*#__PURE__*/React.createElement("br", null), "much higher interest rate (15.5% vs 4% for student loans). All disposable", /*#__PURE__*/React.createElement("br", null), "income goes toward consumer debt before any saving or investing.", /*#__PURE__*/React.createElement("br", null), "Once consumer debt is cleared, normal saving resumes.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("br", null), "This is tracked separately from student loans \u2014 you can see both", /*#__PURE__*/React.createElement("br", null), "in the Year-by-Year table and the Consumer Debt chart tab."), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDCCA Net Worth (the bottom line):")), /*#__PURE__*/React.createElement("div", {
     className: "hiw-formula"
