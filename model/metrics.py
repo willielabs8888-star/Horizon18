@@ -53,17 +53,26 @@ def compute_summary_metrics(
     total_rb = sum(education.annual_room_and_board)
     total_cost = total_tuition + total_rb
 
-    # Year debt-free (age when ALL debt — student + consumer — hits 0)
+    # Year debt-free (age when ALL debt — student + consumer — is finally
+    # paid off and stays at $0).  We look for the LAST transition from
+    # "has debt" → "no debt" so that 529-funded paths that haven't yet
+    # borrowed aren't falsely marked as "debt-free" at age 19.
     year_debt_free = None
     had_debt = any(s.debt_remaining > 0 or s.consumer_debt > 0 for s in snapshots)
     if had_debt:
+        # Walk forward: every time debt drops to 0 after being > 0,
+        # record that age.  The last such age is the real debt-free year.
+        prev_had_debt = False
         for s in snapshots:
-            if s.debt_remaining <= 0 and s.consumer_debt <= 0 and s.year > 0:
+            total_debt = s.debt_remaining + s.consumer_debt
+            if total_debt > 0:
+                prev_had_debt = True
+            elif prev_had_debt and total_debt <= 0:
                 year_debt_free = s.age
-                break
-        # If never paid off within horizon
-        if year_debt_free is None and (snapshots[-1].debt_remaining > 0 or snapshots[-1].consumer_debt > 0):
-            year_debt_free = None  # Still in debt at end
+                prev_had_debt = False  # Reset — could re-enter debt later
+        # If still in debt at end of horizon
+        if snapshots[-1].debt_remaining > 0 or snapshots[-1].consumer_debt > 0:
+            year_debt_free = None
     elif education.total_loan_amount == 0:
         year_debt_free = None  # Never had debt
 
