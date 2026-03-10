@@ -42,30 +42,44 @@ def run_projection(scenario: Scenario) -> SimResult:
     career = scenario.career
     living = scenario.living
 
-    # Pre-compute per-year loan disbursement (tuition + R&B minus family savings share)
-    # Family savings offset is spread proportionally across school years
+    # Family savings (529 account) — starts invested and grows at the
+    # investment return rate. Each school year, that year's costs are
+    # withdrawn from the 529 first. Only if the 529 is depleted does
+    # the student take out loans for the remainder.
     school_years = ed.years_in_school
     total_cost = sum(ed.annual_tuition) + sum(ed.annual_room_and_board)
-    # total_loan_amount = max(0, total_cost - family_savings) from education engine
-    # so: family_savings_used = total_cost - total_loan_amount
-    family_savings_total = total_cost - scenario.education.total_loan_amount
 
-    # If family savings exceeded total cost, the excess seeds investment balance
-    # (e.g., parents gave $100k but school only costs $60k → $40k starts invested)
-    if ed.excess_family_savings > 0:
-        investment_balance = ed.excess_family_savings
+    # Reconstruct original family savings: excess + amount used for school
+    family_savings_used = total_cost - ed.total_loan_amount
+    original_family_savings = ed.excess_family_savings + family_savings_used
+
+    # 529 balance starts with ALL family savings (grows while in school)
+    savings_529 = original_family_savings
 
     for year in range(scenario.projection_years):
         age = scenario.start_age + year
 
-        # --- LOAN DISBURSEMENT (during school years) ---
-        # Each year of school, that year's costs are added to the student debt
+        # --- 529 GROWTH (during school years) ---
+        # The 529 grows at the investment return rate each year
+        if year < school_years and savings_529 > 0:
+            savings_529 *= (1 + scenario.investment_return_rate)
+
+        # --- SCHOOL COSTS + LOAN DISBURSEMENT ---
+        # Each year of school: withdraw costs from 529 first, borrow the rest
         if year < school_years:
             year_cost = ed.annual_tuition[year] + ed.annual_room_and_board[year]
-            # Apply family savings proportionally: spread across school years
-            year_savings_share = family_savings_total / school_years if school_years > 0 else 0
-            year_borrowed = max(0.0, year_cost - year_savings_share)
+
+            # Pay from 529 first
+            paid_from_529 = min(savings_529, year_cost)
+            savings_529 -= paid_from_529
+            year_borrowed = year_cost - paid_from_529
             student_debt += year_borrowed
+
+        # --- TRANSFER REMAINING 529 TO INVESTMENTS ---
+        # Once school is done, any remaining 529 balance moves to investments
+        if year == school_years and savings_529 > 0:
+            investment_balance += savings_529
+            savings_529 = 0.0
 
         # --- INCOME (read from career engine) ---
         gross_income = career.annual_income[year]
@@ -186,8 +200,10 @@ def run_projection(scenario: Scenario) -> SimResult:
                     consumer_debt += remaining_deficit
 
         # --- NET WORTH ---
+        # Include 529 balance as part of investment balance for display
+        displayed_investments = investment_balance + savings_529
         total_debt = student_debt + consumer_debt
-        net_worth = investment_balance - total_debt
+        net_worth = displayed_investments - total_debt
 
         # --- CUMULATIVE TRACKING ---
         taxes_this_year = gross_income - net_income
@@ -205,7 +221,7 @@ def run_projection(scenario: Scenario) -> SimResult:
             loan_payment_required=round(loan_payment_required, 2),
             debt_remaining=round(max(0.0, student_debt), 2),
             annual_savings=round(new_savings, 2),
-            investment_balance=round(investment_balance, 2),
+            investment_balance=round(displayed_investments, 2),
             net_worth=round(net_worth, 2),
             cumulative_earnings=round(cumulative_earnings, 2),
             cumulative_taxes=round(cumulative_taxes, 2),
