@@ -424,6 +424,11 @@ def _serialize_result(result: SimResult) -> dict:
             "start_age": result.scenario.start_age,
             "projection_years": result.scenario.projection_years,
             "loan_term_years": result.scenario.education.loan_term_years,
+            # Extra fields for frontend reading guide
+            "years_in_school": result.scenario.education.years_in_school,
+            "starting_salary": result.scenario.career.starting_salary,
+            "gi_bill_tuition_covered_annual": result.scenario.education.gi_bill_tuition_covered_annual,
+            "gi_bill_housing_monthly": result.scenario.education.gi_bill_housing_monthly,
         },
         "snapshots": [_serialize_snapshot(s) for s in result.snapshots],
         "summary": {

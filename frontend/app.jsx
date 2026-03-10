@@ -1761,6 +1761,63 @@
             <h2>Key Insights</h2>
             <p className="subtitle">What the numbers tell us about your options</p>
             <div style={{lineHeight: 1.8, fontSize: 14}}>
+              {sorted.length === 1 && (() => {
+                const r = sorted[0];
+                const rid = r.scenario.instance_id || r.scenario.path_type;
+                const lastSnap = r.snapshots[r.snapshots.length - 1];
+                const finalNW = lastSnap.net_worth;
+                const totalEarn = r.summary.total_earnings;
+                const debtFree = r.summary.year_debt_free;
+                const totalEd = r.summary.total_cost_of_education;
+                const posNW = r.summary.year_positive_net_worth;
+                return (
+                  <div>
+                    <p style={{marginBottom: 12}}>
+                      Over {projYears} years, <strong style={{color: colorMap[rid]}}>{labelMap[rid]}</strong> reaches
+                      a projected net worth of <strong>{fmtFull(finalNW)}</strong> with
+                      total lifetime earnings of <strong>{fmtFull(totalEarn)}</strong>.
+                    </p>
+                    {debtFree && (
+                      <p style={{marginBottom: 12}}>
+                        <strong>Debt timeline:</strong> Student debt is paid off at age {debtFree}.
+                        {totalEd > 0 && ` Total education cost: ${fmtFull(totalEd)}.`}
+                      </p>
+                    )}
+                    {!debtFree && totalEd === 0 && (
+                      <p style={{marginBottom: 12}}>
+                        <strong>No student debt</strong> — all income goes toward living expenses, savings, and investments from day one.
+                      </p>
+                    )}
+                    {posNW && (
+                      <p style={{marginBottom: 12}}>
+                        <strong>Positive net worth</strong> reached at age {posNW}.
+                      </p>
+                    )}
+                    {r.summary.debt_burden_ratio > 0 && (
+                      <p style={{marginBottom: 12}}>
+                        <strong>Peak debt burden:</strong> {(r.summary.debt_burden_ratio * 100).toFixed(0)}% of take-home pay
+                        {r.summary.debt_burden_ratio > 0.15 ? " (high)" : r.summary.debt_burden_ratio > 0.10 ? " (moderate)" : " (manageable)"}.
+                        <span style={{color:"var(--text-dim)", fontSize:12}}> Under 10% is comfortable; over 15% can be a strain.</span>
+                      </p>
+                    )}
+                    {r.summary.loan_extended && (
+                      <p style={{marginBottom: 12, padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 8, fontSize: 13}}>
+                        <strong style={{color: "#f59e0b"}}>Loan repayment adjusted:</strong>{" "}
+                        {(() => {
+                          const lastS = r.snapshots[r.snapshots.length - 1];
+                          if (lastS && lastS.debt_remaining > 0) {
+                            return `Selected ${r.summary.loan_term_original}-year repayment, but income never exceeds expenses enough to pay off the loan within the projection window.`;
+                          }
+                          return `Selected ${r.summary.loan_term_original}-year repayment, but income-based payments extend it to ~${r.summary.loan_term_actual} years.`;
+                        })()}
+                      </p>
+                    )}
+                    <p style={{color: "var(--text-dim)", fontStyle: "italic", marginTop: 16}}>
+                      Add more paths to compare — the real power of this tool is seeing how different choices stack up side by side.
+                    </p>
+                  </div>
+                );
+              })()}
               {sorted.length >= 2 && (() => {
                 const byNW = [...sorted].sort((a, b) =>
                   b.snapshots[b.snapshots.length-1].net_worth - a.snapshots[a.snapshots.length-1].net_worth
@@ -1859,12 +1916,10 @@
               if (!result) return null;
               const pt = result.scenario.path_type;
               const snaps = result.snapshots;
-              const ed = result.scenario.education;
-              const career = result.scenario.career;
-              const startSal = career.starting_salary;
+              const startSal = result.scenario.starting_salary || 0;
               const fmtK = v => v >= 1000 ? "$" + (v/1000).toFixed(0) + "k" : "$" + Math.round(v);
               const fmtD = v => "$" + Math.round(v).toLocaleString();
-              const schoolYrs = ed.years_in_school;
+              const schoolYrs = result.scenario.years_in_school || 0;
               const startAge = result.scenario.start_age || 18;
 
               if (pt === "college") {
@@ -1926,7 +1981,7 @@
               if (pt === "military") {
                 const yr1Income = snaps[0]?.gross_income || 0;
                 const serviceYrs = schoolYrs;
-                const isGiBill = ed.gi_bill_tuition_covered_annual > 0 || ed.gi_bill_housing_monthly > 0;
+                const isGiBill = (result.scenario.gi_bill_tuition_covered_annual || 0) > 0 || (result.scenario.gi_bill_housing_monthly || 0) > 0;
 
                 if (isGiBill) {
                   const giBillIncome = snaps[Math.min(serviceYrs, snaps.length - 1)]?.gross_income || 0;
