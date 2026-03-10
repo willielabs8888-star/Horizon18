@@ -14,4 +14,13 @@ package-lock.json
 # Marketing / docs (keep local, not in repo)
 Horizon18_Counselor_OnePager.pdf
 Marketing_Procedures.md
+Marketing_LaunchNight.md
 Horizon18_Deployment_Guide.md
+Horizon18_30Day_Social_Media_Plan.docx
+Horizon18_30Day_Posting_Schedule.xlsx
+
+# Credentials (NEVER commit)
+.credentials/
+*.credentials
+.env
+.env.*

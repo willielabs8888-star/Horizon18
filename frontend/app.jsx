@@ -1954,7 +1954,7 @@
             Horizon18 — For educational purposes only. This tool does not provide financial advice.
             <br />All figures are in today's dollars (inflation-adjusted). A dollar shown at any age has the same purchasing power as a dollar today.
             <br />Projections use simplified assumptions and generalized data sources (BLS, College Scorecard, NACE, DFAS).
-            <br /><a href="mailto:contact@horizon18.app?subject=Horizon18 Feedback" style={{color: "var(--accent)", textDecoration: "none", fontSize: 13, marginTop: 8, display: "inline-block"}}>Contact Us</a>
+            <br /><a href="mailto:willielabs8888@gmail.com?subject=Horizon18 Feedback" style={{color: "var(--accent)", textDecoration: "none", fontSize: 13, marginTop: 8, display: "inline-block"}}>Contact Us</a>
           </div>
         </div>
       );
