@@ -864,6 +864,9 @@ function QuizPage({
   const [metros, setMetros] = useState([]);
   const [collapsed, setCollapsed] = useState({}); // instance_id → bool
   const [showMissing, setShowMissing] = useState(false); // highlight empty fields after Continue attempt
+  const [salaryDefaults, setSalaryDefaults] = useState(null);
+  const [salaryLoading, setSalaryLoading] = useState(false);
+  const salaryFetchedMetro = useRef(null);
   const [shared, setShared] = useState({
     metro_area: "national_avg",
     living_at_home: false,
@@ -1829,9 +1832,6 @@ function QuizPage({
   };
 
   // Step 3: Salary review (editable estimates)
-  const [salaryDefaults, setSalaryDefaults] = useState(null);
-  const [salaryLoading, setSalaryLoading] = useState(false);
-  const salaryFetchedMetro = useRef(null);
   const fetchSalaryDefaults = metro => {
     if (salaryFetchedMetro.current === metro && salaryDefaults) return;
     setSalaryLoading(true);
