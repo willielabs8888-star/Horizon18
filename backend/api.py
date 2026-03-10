@@ -58,6 +58,7 @@ def _build_college_answers(c: dict) -> CollegeAnswers:
         major=Major(c.get("major", "undecided")),
         part_time_work=c.get("part_time_work", True),
         part_time_income=max(0.0, min(25000.0, float(c.get("part_time_income", 8000)))),
+        starting_salary_override=_safe_non_negative_float(c.get("starting_salary_override")),
     )
 
 def _build_cc_answers(cc: dict) -> CommunityCollegeAnswers:
@@ -72,6 +73,7 @@ def _build_cc_answers(cc: dict) -> CommunityCollegeAnswers:
         major=Major(cc.get("major", "undecided")),
         part_time_work=cc.get("part_time_work", True),
         part_time_income=max(0.0, min(25000.0, float(cc.get("part_time_income", 10000)))),
+        starting_salary_override=_safe_non_negative_float(cc.get("starting_salary_override")),
     )
 
 def _safe_float(val) -> float | None:
@@ -99,9 +101,20 @@ def _clamp_loan_term(val, default=15) -> int:
         return default
 
 def _build_trade_answers(t: dict) -> TradeAnswers:
+    # Parse optional apprentice wage overrides (list of 4 floats)
+    raw_apprentice = t.get("apprentice_wages_override")
+    apprentice_override = None
+    if raw_apprentice and isinstance(raw_apprentice, list) and len(raw_apprentice) == 4:
+        try:
+            apprentice_override = [max(0.0, float(v)) for v in raw_apprentice]
+        except (ValueError, TypeError):
+            apprentice_override = None
+
     return TradeAnswers(
         trade_type=TradeType(t.get("trade_type", "electrician")),
         loan_term_years=_clamp_loan_term(t.get("loan_term_years", 5)),
+        journeyman_salary_override=_safe_non_negative_float(t.get("journeyman_salary_override")),
+        apprentice_wages_override=apprentice_override,
     )
 
 def _build_workforce_answers(w: dict) -> WorkforceAnswers:

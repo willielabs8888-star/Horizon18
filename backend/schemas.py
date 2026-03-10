@@ -82,23 +82,24 @@ class CollegeAnswersRequest(BaseModel):
     major: Major = Major.UNDECIDED
     part_time_work: bool = True
     part_time_income: float = 8_000
-
+    starting_salary_override: float | None = None  # User-adjusted starting salary
 
 class CommunityCollegeAnswersRequest(BaseModel):
     transfer_university_type: SchoolType = SchoolType.PUBLIC_IN_STATE
     major: Major = Major.UNDECIDED
     part_time_work: bool = True
     part_time_income: float = 10_000
-
+    starting_salary_override: float | None = None  # User-adjusted starting salary
 
 class TradeAnswersRequest(BaseModel):
     trade_type: TradeType = TradeType.ELECTRICIAN
     entry_path: TradeEntryPath = TradeEntryPath.APPRENTICESHIP
-
+    journeyman_salary_override: float | None = None   # User-adjusted journeyman salary
+    apprentice_wages_override: list[float] | None = None  # User-adjusted [yr1, yr2, yr3, yr4]
 
 class WorkforceAnswersRequest(BaseModel):
     industry: WorkforceIndustry = WorkforceIndustry.RETAIL
-    known_starting_wage: float | None = None
+    known_starting_wage: float | None = None  # User-adjusted starting wage
 
 
 class MilitaryAnswersRequest(BaseModel):

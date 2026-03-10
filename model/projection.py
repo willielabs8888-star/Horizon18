@@ -188,16 +188,21 @@ def run_projection(scenario: Scenario) -> SimResult:
         disposable = net_income - pt_income_used_for_school - expenses - loan_payment
 
         if disposable >= 0:
-            # Positive cashflow
+            # Savings target = % of net income (what the user "wants" to save).
+            # But actual savings can't exceed what's available after all costs.
+            # Example: 25% of $40k net = $10k target, but if only $5k is
+            # available after expenses + loans, actual savings = $5k (12.5%).
+            target_savings = net_income * scenario.savings_rate
+            available_for_savings = disposable  # What's actually left
+
             if consumer_debt > 0:
                 # PRIORITY: Pay down high-interest consumer debt first.
                 # All disposable income goes to consumer debt before saving.
                 paydown = min(consumer_debt, disposable)
                 consumer_debt -= paydown
-                leftover = disposable - paydown
-                new_savings = leftover * scenario.savings_rate
-            else:
-                new_savings = disposable * scenario.savings_rate
+                available_for_savings = disposable - paydown
+
+            new_savings = min(target_savings, available_for_savings)
 
             investment_balance = (
                 investment_balance * (1 + scenario.investment_return_rate)

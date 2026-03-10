@@ -2382,62 +2382,50 @@
 
                 <p><strong>💰 Take-Home Pay (after taxes):</strong></p>
                 <div className="hiw-formula">
-                  Net Income = Gross Income × (1 − Tax Rate)<br/><br/>
-                  Example: $60,000 gross × (1 − 0.18) = $49,200 take-home<br/>
-                  Default tax rate: 18% (simplified flat rate)
+                  Your take-home pay is your gross salary minus taxes. The model uses a simplified flat tax rate (default 22%) to estimate this. In reality, tax brackets are more complex, but a flat rate gives a reasonable approximation for comparison purposes.<br/><br/>
+                  Example: $60,000 gross salary at 22% tax rate = $46,800 take-home pay
                 </div>
 
                 <p><strong>🏦 Student Loan Payments:</strong></p>
                 <div className="hiw-formula">
-                  Standard Amortization Formula:<br/>
-                  Monthly Payment = P × [r(1+r)^n] / [(1+r)^n − 1]<br/><br/>
-                  Don't worry if that looks scary! Here's what the letters mean:<br/>
-                  P = your total loan balance when payments start<br/>
-                  r = monthly interest rate (4.0% real annual ÷ 12 months = 0.333%)<br/>
-                  n = total number of monthly payments (10 years × 12 = 120 payments)<br/><br/>
-                  Example: $60,000 loan at 4.0% real for 10 years<br/>
+                  Your monthly loan payment is calculated using a standard amortization formula — the same one banks use for mortgages and auto loans. It spreads your total balance into equal monthly payments over your chosen repayment period (default: 10 years).<br/><br/>
+                  The model uses a 4% annual interest rate. This is a "real" rate, meaning it's already adjusted for inflation. In practice, student loan rates are typically 6–7%, but roughly 2–3% of that just keeps up with rising prices. By using the real rate, all dollar amounts in the simulation stay in today's purchasing power — so $50,000 in year 20 means the same as $50,000 today.<br/><br/>
+                  Example: $60,000 loan at 4% for 10 years<br/>
                   Monthly payment ≈ $607<br/>
                   Total paid over 10 years ≈ $72,840<br/>
-                  Total interest ≈ $12,840
+                  Total interest paid ≈ $12,840
                 </div>
 
                 <p><strong>⚠️ Loan payments are capped at what you can afford:</strong></p>
                 <div className="hiw-formula">
-                  Actual Payment = min(Required Payment, Net Income − Living Expenses)<br/><br/>
-                  If your income minus expenses is less than the required monthly payment,<br/>
-                  the simulation only pays what you can actually afford.<br/>
-                  The remaining balance continues accruing interest, and your loan takes<br/>
-                  longer to pay off than the originally selected term.<br/><br/>
-                  Example: Required payment = $953/month ($11,436/year)<br/>
-                  But disposable income = $8,000/year<br/>
-                  → You pay $8,000. The shortfall stays on the loan with interest.
+                  Loan payments are capped at what you can realistically afford. If the required payment is larger than the money you have left after paying living expenses, the model assumes you only pay what you can that year. The unpaid balance stays on the loan and continues accruing interest, which means it takes longer to pay off.<br/><br/>
+                  Example: Your calculated payment is $953/month ($11,436/year), but after rent, food, and other expenses you only have $8,000 left. You pay the $8,000 and the remaining $3,436 stays on the loan with interest.
                 </div>
 
                 <p><strong>⚠️ Interest grows while you're in school:</strong></p>
                 <div className="hiw-formula">
-                  Each year in school: Balance = Balance × (1 + 0.040)<br/><br/>
-                  New loans are taken out each year (after part-time income and 529 savings<br/>
-                  are applied). All outstanding loan balances accrue interest while you're<br/>
-                  in school — so earlier borrowing costs more than later borrowing.<br/><br/>
-                  Example: Borrow $15,000/year for 4 years at 4.0% real<br/>
+                  Your loan balance grows by 4% each year while you're in school, even though you aren't making payments yet. New loans are taken out each year (after part-time income and family savings are applied), and interest compounds on the entire outstanding balance. This means money borrowed in your first year costs more than money borrowed in your last year.<br/><br/>
+                  Example: Borrow $15,000/year for 4 years at 4%<br/>
                   By graduation your balance is ~$63,650 (vs $60,000 borrowed)<br/>
                   That's ~$3,650 in interest before you make a single payment.
                 </div>
 
                 <p><strong>📈 Investment Growth (compound interest):</strong></p>
                 <div className="hiw-formula">
-                  Each year: Investments = (Previous Balance × 1.06) + New Savings<br/><br/>
-                  Default return rate: 6% per year (real, after inflation)<br/><br/>
-                  Example: Save $5,000/year for 30 years at 6% real<br/>
-                  Total contributed: $150,000<br/>
-                  Final balance: ~$395,000 in today's dollars (compound interest earned you $245,000!)
+                  Each year, your existing investment balance grows by 6% (above inflation), and then any new savings you make that year are added on top. Over time, this compounding effect is powerful — your money earns returns, and those returns earn their own returns.<br/><br/>
+                  The 6% rate assumes a balanced portfolio of stocks and bonds, after adjusting for inflation. This is a widely used long-term planning assumption.<br/><br/>
+                  Example: Save $5,000/year for 30 years at 6%<br/>
+                  Total you put in: $150,000<br/>
+                  Final balance: ~$395,000 in today's dollars<br/>
+                  Compound interest earned you ~$245,000 on top of what you saved!
                 </div>
 
                 <p><strong>💵 How much you save each year:</strong></p>
                 <div className="hiw-formula">
-                  Annual Savings = max(0, (Net Income − School Cost Offset − Living Expenses − Loan Payment) × Savings Rate)<br/><br/>
-                  During school years, part-time income is applied toward tuition and room & board first. Only the remaining income (if any) flows into the savings calculation above.<br/><br/>
-                  The 'Realized Savings Rate' chart shows what percentage of income was actually saved — which may be lower than your target if expenses and loan payments are high.
+                  Your savings target is your chosen savings rate (default 10%) applied to your take-home pay. For example, if you earn $40,000 after taxes and your target is 25%, you'd aim to save $10,000 that year.<br/><br/>
+                  But if living expenses, loan payments, and other costs leave you with less than $10,000, you save whatever is actually available. In a tight year where expenses leave only $5,000 free, your realized savings rate drops to 12.5% even though your target is 25%.<br/><br/>
+                  During school years, part-time income goes toward tuition and room & board first. Only the remaining income (if any) can be saved.<br/><br/>
+                  The "Realized Savings Rate" chart shows what you actually saved each year versus your target.
                 </div>
 
                 <p><strong>💳 Consumer Debt (deficit spending):</strong></p>

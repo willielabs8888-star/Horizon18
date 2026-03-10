@@ -66,7 +66,10 @@ def _build_college_career(
     projection_years: int,
 ) -> CareerProfile:
     major = answers.major.value
-    base_salary = STARTING_SALARY[major] * salary_multiplier
+    if answers.starting_salary_override is not None:
+        base_salary = answers.starting_salary_override
+    else:
+        base_salary = STARTING_SALARY[major] * salary_multiplier
     growth = SALARY_GROWTH[major]
     years_in_school = 4
     part_time = answers.part_time_income if answers.part_time_work else 0.0
@@ -98,7 +101,10 @@ def _build_cc_career(
     projection_years: int,
 ) -> CareerProfile:
     major = answers.major.value
-    base_salary = STARTING_SALARY[major] * salary_multiplier * (1 - CC_TRANSFER_SALARY_DISCOUNT)
+    if answers.starting_salary_override is not None:
+        base_salary = answers.starting_salary_override
+    else:
+        base_salary = STARTING_SALARY[major] * salary_multiplier * (1 - CC_TRANSFER_SALARY_DISCOUNT)
     growth = SALARY_GROWTH[major]
     years_in_school = 4
     part_time = answers.part_time_income if answers.part_time_work else 0.0
@@ -129,15 +135,25 @@ def _build_trade_career(
     projection_years: int,
 ) -> CareerProfile:
     trade = answers.trade_type.value
-    apprentice_wages = APPRENTICE_WAGES[trade]
-    journeyman = JOURNEYMAN_SALARY[trade] * salary_multiplier
+    if answers.apprentice_wages_override is not None:
+        apprentice_wages = answers.apprentice_wages_override
+    else:
+        apprentice_wages = APPRENTICE_WAGES[trade]
+    if answers.journeyman_salary_override is not None:
+        journeyman = answers.journeyman_salary_override
+    else:
+        journeyman = JOURNEYMAN_SALARY[trade] * salary_multiplier
     growth = SALARY_GROWTH["trade"]
     apprentice_years = len(apprentice_wages)
 
     income: list[float] = []
     for year in range(projection_years):
         if year < apprentice_years:
-            income.append(apprentice_wages[year] * salary_multiplier)
+            # Apply multiplier only to default wages, not overrides
+            if answers.apprentice_wages_override is not None:
+                income.append(apprentice_wages[year])
+            else:
+                income.append(apprentice_wages[year] * salary_multiplier)
         else:
             years_as_journeyman = year - apprentice_years
             income.append(journeyman * (1 + growth) ** years_as_journeyman)
