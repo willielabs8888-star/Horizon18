@@ -56,6 +56,13 @@ class WorkforceIndustry(str, Enum):
     FOOD_SERVICE = "food_service"
     ADMIN = "admin"
     MANUFACTURING = "manufacturing"
+    SECURITY = "security"
+    LANDSCAPING = "landscaping"
+    CUSTOMER_SERVICE = "customer_service"
+    DELIVERY_DRIVER = "delivery_driver"
+    JANITORIAL = "janitorial"
+    HOME_HEALTH_AIDE = "home_health_aide"
+    CHILDCARE = "childcare"
 
 
 class Region(str, Enum):
@@ -98,6 +105,7 @@ class MilitaryAnswersRequest(BaseModel):
     enlistment_years: int = 4
     use_gi_bill: bool = True
     gi_bill_major: Major = Major.UNDECIDED
+    civilian_industry: WorkforceIndustry = WorkforceIndustry.ADMIN
 
 
 class SimulateRequest(BaseModel):

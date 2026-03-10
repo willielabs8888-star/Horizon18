@@ -71,7 +71,7 @@
       cc_transfer: { transfer_university_type: "", major: "", use_search: true, use_transfer_search: true, loan_term_years: 10, part_time_work: true, part_time_income: 10000 },
       trade: { trade_type: "", loan_term_years: 5 },
       workforce: { industry: "" },
-      military: { enlistment_years: 4, use_gi_bill: true, gi_bill_major: "" },
+      military: { enlistment_years: 4, use_gi_bill: true, gi_bill_major: "", civilian_industry: "admin" },
     };
 
     const MAX_INSTANCES = 10;
@@ -168,7 +168,7 @@
       } else if (inst.path_type === "workforce" && inst.industry) {
         specific = ` – ${fmtEnum(inst.industry)}`;
       } else if (inst.path_type === "military") {
-        specific = inst.use_gi_bill ? ` – GI Bill (${fmtEnum(inst.gi_bill_major) || "Undecided"})` : " – Civilian";
+        specific = inst.use_gi_bill ? ` – GI Bill (${fmtEnum(inst.gi_bill_major) || "Undecided"})` : ` – Civilian (${fmtEnum(inst.civilian_industry) || "Admin"})`;
       }
 
       return `${base}${specific}${num}`;
@@ -192,6 +192,7 @@
         if (!inst.industry) missing.push({ field: "industry", label: "Pick an industry" });
       } else if (pt === "military") {
         if (inst.use_gi_bill && !inst.gi_bill_major) missing.push({ field: "gi_bill_major", label: "Pick a post-service major" });
+        if (!inst.use_gi_bill && !inst.civilian_industry) missing.push({ field: "civilian_industry", label: "Pick a civilian industry" });
       }
       return missing;
     }
@@ -217,7 +218,7 @@
       }
       if (pt === "trade") return LABEL_MAP[inst.trade_type] || "Not configured";
       if (pt === "workforce") return LABEL_MAP[inst.industry] || "Not configured";
-      if (pt === "military") return inst.use_gi_bill ? `GI Bill: ${LABEL_MAP[inst.gi_bill_major] || "Not configured"}` : "No GI Bill";
+      if (pt === "military") return inst.use_gi_bill ? `GI Bill: ${LABEL_MAP[inst.gi_bill_major] || "Not configured"}` : `Civilian: ${LABEL_MAP[inst.civilian_industry] || "Not configured"}`;
       return "";
     }
 
@@ -669,7 +670,7 @@
             }
             if (pt === "trade") return inst.trade_type;
             if (pt === "workforce") return inst.industry;
-            if (pt === "military") return !inst.use_gi_bill || inst.gi_bill_major;
+            if (pt === "military") return inst.use_gi_bill ? !!inst.gi_bill_major : !!inst.civilian_industry;
             return true;
           });
         }
@@ -1275,6 +1276,18 @@
                         </select>
                       </div>
                     )}
+                    {!inst.use_gi_bill && (
+                      <div className={"form-group" + (showMissing && missingFieldNames.has("civilian_industry") ? " field-missing" : "")}>
+                        <label>Civilian industry after service</label>
+                        <p className="field-hint">Which industry will you work in after your enlistment? Veterans receive a 10% hiring premium over standard entry-level wages.</p>
+                        <select className="form-select" value={inst.civilian_industry}
+                          onChange={e => updateInstance(inst.instance_id, "civilian_industry", e.target.value)}>
+                          {["retail","logistics","food_service","admin","manufacturing","security","landscaping","customer_service","delivery_driver","janitorial","home_health_aide","childcare"].map(i =>
+                            <option key={i} value={i}>{LABEL_MAP[i]}</option>
+                          )}
+                        </select>
+                      </div>
+                    )}
                   </>
                 )}
                 </div>{/* end path-section-body */}
@@ -1835,14 +1848,105 @@
             const effectiveTab = tableTab || (results[0]?.scenario.instance_id || results[0]?.scenario.path_type || "");
             const activeResult = results.find(r => (r.scenario.instance_id || r.scenario.path_type) === effectiveTab);
 
-            const pathFormulas = {
-              college: "Part-time income during school is applied toward tuition + room & board first (reducing loans). Any leftover is saved. After graduation: Starting Salary × (1 + Growth Rate)^years of experience. Grace period year = 50% of starting salary.",
-              cc_transfer: "Part-time income offsets school costs first, then savings. Same as 4-year college, but starting salary is ~2% lower for CC transfers. First 2 years at community college tuition rates.",
-              trade: "Apprentice wages increase each year (40→60→75→90% of journeyman rate). After apprenticeship: Journeyman Salary × (1 + Growth Rate)^years.",
-              workforce: "Starting Wage × (1.005)^years. No education costs or debt. Income begins immediately.",
-              military: "Active duty pay during service (E1→E4 progression). GI Bill housing allowance (~$28k/yr, tax-exempt) during school. Then civilian career salary.",
+            // Build a path-specific reading guide using actual scenario data
+            const buildGuide = (result) => {
+              if (!result) return null;
+              const pt = result.scenario.path_type;
+              const snaps = result.snapshots;
+              const ed = result.scenario.education;
+              const career = result.scenario.career;
+              const startSal = career.starting_salary;
+              const fmtK = v => v >= 1000 ? "$" + (v/1000).toFixed(0) + "k" : "$" + Math.round(v);
+              const fmtD = v => "$" + Math.round(v).toLocaleString();
+              const schoolYrs = ed.years_in_school;
+              const startAge = result.scenario.start_age || 18;
+
+              if (pt === "college") {
+                const ptIncome = snaps[0]?.gross_income || 0;
+                const graceSal = snaps[schoolYrs]?.gross_income || 0;
+                const fullSal = snaps[schoolYrs + 1]?.gross_income || startSal;
+                const peakDebt = Math.max(...snaps.map(s => s.debt_remaining));
+                return {
+                  phases: [
+                    { label: `Ages ${startAge}–${startAge + schoolYrs - 1} · School`, desc: ptIncome > 0 ? `Full-time student. Part-time income (${fmtK(ptIncome)}/yr) goes toward tuition + room & board first, reducing loans. 529 savings cover remaining costs.` : `Full-time student. No part-time work. Tuition + room & board paid from 529 savings, remainder becomes student loans.` },
+                    { label: `Age ${startAge + schoolYrs} · Grace Period`, desc: `Job search phase. You earn roughly half your starting salary (${fmtK(graceSal)}). Loan interest still accrues but no payments yet.` },
+                    { label: `Age ${startAge + schoolYrs + 1}+ · Career`, desc: `Full-time career begins at ${fmtD(fullSal)}/yr. Salary grows annually. Loan payments start, and you begin saving and investing.` },
+                  ],
+                  tip: peakDebt > 0 ? `Peak student debt reaches ${fmtD(peakDebt)} — watch for when it drops to $0 in the table.` : `No student loans needed — 529 savings and part-time income covered all costs.`,
+                };
+              }
+
+              if (pt === "cc_transfer") {
+                const ptIncome = snaps[0]?.gross_income || 0;
+                const fullSal = snaps[schoolYrs + 1]?.gross_income || startSal;
+                const peakDebt = Math.max(...snaps.map(s => s.debt_remaining));
+                return {
+                  phases: [
+                    { label: `Ages ${startAge}–${startAge + 1} · Community College`, desc: `Lower tuition years.${ptIncome > 0 ? ` Part-time income (${fmtK(ptIncome)}/yr) offsets costs.` : ""} This is where you save the most vs. 4-year college.` },
+                    { label: `Ages ${startAge + 2}–${startAge + 3} · University`, desc: `Transfer to 4-year school at higher tuition. Part-time income continues to help offset costs.` },
+                    { label: `Age ${startAge + schoolYrs}+ · Career`, desc: `Starting salary is ~2% lower than direct 4-year grads (${fmtD(fullSal)}/yr). Less debt usually offsets the small salary gap.` },
+                  ],
+                  tip: peakDebt > 0 ? `Peak debt: ${fmtD(peakDebt)} — typically lower than straight 4-year college.` : `No student loans needed.`,
+                };
+              }
+
+              if (pt === "trade") {
+                const yr1Income = snaps[0]?.gross_income || 0;
+                const yr4Income = snaps[Math.min(3, snaps.length - 1)]?.gross_income || 0;
+                const journeymanIncome = snaps[Math.min(4, snaps.length - 1)]?.gross_income || startSal;
+                const peakDebt = Math.max(...snaps.map(s => s.debt_remaining));
+                return {
+                  phases: [
+                    { label: `Age ${startAge} · Apprentice Year 1`, desc: `Start earning immediately at ${fmtK(yr1Income)}/yr while learning. Trade school costs are low (one-time, not per year).` },
+                    { label: `Ages ${startAge + 1}–${startAge + 3} · Apprentice Years 2–4`, desc: `Wages increase each year as skills grow. By year 4 you earn ${fmtK(yr4Income)}/yr — roughly 85% of journeyman pay.` },
+                    { label: `Age ${startAge + 4}+ · Journeyman`, desc: `Full journeyman salary kicks in at ${fmtD(journeymanIncome)}/yr. No grace period — you were already working.` },
+                  ],
+                  tip: peakDebt > 0 ? `Small loan of ${fmtD(peakDebt)} for trade school — typically paid off within 2–3 years.` : `No loans needed — family savings covered trade school.`,
+                };
+              }
+
+              if (pt === "workforce") {
+                const startIncome = snaps[0]?.gross_income || 0;
+                const yr10Income = snaps[Math.min(9, snaps.length - 1)]?.gross_income || 0;
+                return {
+                  phases: [
+                    { label: `Age ${startAge} · Day 1`, desc: `Start earning full-time immediately at ${fmtD(startIncome)}/yr. No tuition, no loans, no waiting.` },
+                    { label: `Every year after`, desc: `Salary grows ~0.5% per year (above inflation). By age ${startAge + 10}, you earn ${fmtD(yr10Income)}/yr. Growth is slower than degree paths, but you have a 4-year head start.` },
+                  ],
+                  tip: `No debt at any point. Your investments compound from day one — that head start matters.`,
+                };
+              }
+
+              if (pt === "military") {
+                const yr1Income = snaps[0]?.gross_income || 0;
+                const serviceYrs = schoolYrs;
+                const isGiBill = ed.gi_bill_tuition_covered_annual > 0 || ed.gi_bill_housing_monthly > 0;
+
+                if (isGiBill) {
+                  const giBillIncome = snaps[Math.min(serviceYrs, snaps.length - 1)]?.gross_income || 0;
+                  const postDegreeIncome = snaps[Math.min(serviceYrs + 4, snaps.length - 1)]?.gross_income || startSal;
+                  return {
+                    phases: [
+                      { label: `Ages ${startAge}–${startAge + serviceYrs - 1} · Active Duty`, desc: `Military pay starts at ${fmtK(yr1Income)}/yr (base + housing allowance). Most living expenses covered — save aggressively.` },
+                      { label: `Ages ${startAge + serviceYrs}–${startAge + serviceYrs + 3} · GI Bill School`, desc: `Free tuition + tax-free housing allowance of ${fmtK(giBillIncome)}/yr. No student loans.` },
+                      { label: `Age ${startAge + serviceYrs + 4}+ · Career`, desc: `Post-degree career at ${fmtD(postDegreeIncome)}/yr. Same salary as civilian grads in your major.` },
+                    ],
+                    tip: `$0 student debt. The GI Bill housing income shown is tax-exempt — your take-home equals your gross during those years.`,
+                  };
+                } else {
+                  const civIncome = snaps[Math.min(serviceYrs, snaps.length - 1)]?.gross_income || startSal;
+                  return {
+                    phases: [
+                      { label: `Ages ${startAge}–${startAge + serviceYrs - 1} · Active Duty`, desc: `Military pay starts at ${fmtK(yr1Income)}/yr. Most living expenses covered.` },
+                      { label: `Age ${startAge + serviceYrs}+ · Civilian Career`, desc: `Enter workforce with 10% veteran hiring premium. Starting at ${fmtD(civIncome)}/yr in your chosen industry.` },
+                    ],
+                    tip: `No school costs, no debt. Your military savings give you a strong investment head start.`,
+                  };
+                }
+              }
+
+              return null;
             };
-            const sharedFormulas = "Savings = max(0, (Net Income − Living Expenses − Loan Payment) × Savings Rate)\nInvestments = Previous Balance × (1 + Return Rate) + Annual Savings\nNet Worth = Investment Balance − Remaining Debt";
 
             return (
               <div className="card" style={{padding: 0, overflow: "hidden"}}>
@@ -1869,6 +1973,29 @@
                         );
                       })}
                     </div>
+                    {/* Path-specific reading guide */}
+                    {activeResult && (() => {
+                      const guide = buildGuide(activeResult);
+                      if (!guide) return null;
+                      return (
+                        <div style={{padding: "14px 20px", background: "var(--bg)", borderBottom: "1px solid var(--border)"}}>
+                          <div style={{fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text)"}}>How to read this table</div>
+                          <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                            {guide.phases.map((p, i) => (
+                              <div key={i} style={{fontSize: 12, lineHeight: 1.5}}>
+                                <span style={{fontWeight: 600, color: "var(--accent)"}}>{p.label}:</span>{" "}
+                                <span style={{color: "var(--text-dim)"}}>{p.desc}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {guide.tip && (
+                            <div style={{marginTop: 10, fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", borderLeft: "3px solid var(--accent)", paddingLeft: 10}}>
+                              {guide.tip}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {/* Data table */}
                     {activeResult && (
                       <div style={{overflowX: "auto", padding: "0 0 16px 0"}}>
@@ -1900,15 +2027,9 @@
                             ))}
                           </tbody>
                         </table>
-                        {/* Formula explanations */}
-                        <div style={{padding: "16px 20px", borderTop: "1px solid var(--border)", background: "var(--bg)"}}>
-                          <div style={{fontWeight: 600, fontSize: 13, marginBottom: 8}}>How these numbers are calculated</div>
-                          <p style={{fontSize: 12, color: "var(--text-dim)", marginBottom: 8, whiteSpace: "pre-line"}}>
-                            <strong>Income:</strong> {pathFormulas[activeResult.scenario.path_type] || "Based on path-specific income model."}
-                          </p>
-                          <p style={{fontSize: 12, color: "var(--text-dim)", whiteSpace: "pre-line"}}>
-                            <strong>Shared formulas:</strong>{"\n"}{sharedFormulas}
-                          </p>
+                        {/* Compact formula reference */}
+                        <div style={{padding: "12px 20px", borderTop: "1px solid var(--border)", background: "var(--bg)", fontSize: 11, color: "var(--text-dim)"}}>
+                          <strong>Formulas:</strong> Net Income = Gross × (1 − Tax Rate) · Savings = (Net Income − School Offset − Expenses − Loan Pmt) × Savings Rate · Investments = Previous × 1.06 + Savings · Net Worth = Investments − All Debt
                         </div>
                       </div>
                     )}

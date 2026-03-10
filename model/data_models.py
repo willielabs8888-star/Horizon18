@@ -163,6 +163,7 @@ class MilitaryAnswers:
     enlistment_years: int = 4
     use_gi_bill: bool = True
     gi_bill_major: Major = Major.UNDECIDED
+    civilian_industry: WorkforceIndustry = WorkforceIndustry.ADMIN  # Post-service industry (used when use_gi_bill=False)
 
 
 @dataclass
@@ -215,8 +216,8 @@ class EducationProfile:
 
     # Loan structure
     total_loan_amount: float = 0.0
-    loan_interest_rate: float = 0.065
-    loan_term_years: int = 15
+    loan_interest_rate: float = 0.040      # Matches LOAN_INTEREST_RATE in defaults/financial.py
+    loan_term_years: int = 10              # Matches LOAN_TERM_YEARS in defaults/financial.py
     grace_period_months: int = 6
 
     # Excess family savings beyond education cost (seeds investment balance)

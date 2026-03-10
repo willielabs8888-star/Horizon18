@@ -275,6 +275,15 @@ Only income remaining after school costs are satisfied flows into the normal
 savings/investment pipeline. This is handled in `projection.py` — income is
 calculated before school costs so the offset can be applied.
 
+**Grace period income:** College and CC paths use `GRACE_PERIOD_MONTHS / 12`
+to compute the fraction of first-year salary earned during the grace period
+(6 months = 50%). This is parameterized — if `GRACE_PERIOD_MONTHS` changes
+in `defaults/financial.py`, the income fraction updates automatically.
+
+**GI Bill school years:** Derived from `GI_BILL["months_of_benefits"] // 9`
+(36 months / 9 months per academic year = 4 years). Auto-updates if VA
+changes benefit duration.
+
 **How the array gets built for each path type:**
 
 ```
@@ -309,8 +318,11 @@ Military (4yr enlistment, GI Bill → STEM, Midwest):
 
 Military (no GI Bill, → civilian workforce, Midwest):
   Year 0-3 (age 18-21): Military pay ramp (same as above)
-  Year 4 (age 22):      $38,961 (admin wage * 0.95 midwest * 1.10 veteran premium)
-  Year 5-19:            $38,961 * 1.02^n
+  Year 4 (age 22):      Entry wage for user-selected industry * metro mult * 1.10 veteran premium
+                         Example (Admin): $35,419 * 0.95 * 1.10 = $37,013
+  Year 5-19:            Starting salary * 1.005^n (workforce growth rate)
+  Note: civilian_industry field on MilitaryAnswers controls which industry.
+        Default is ADMIN (backward compatible). Users select in quiz when use_gi_bill=False.
 
 Direct Workforce (Retail, Midwest):
   Year 0 (age 18):      $30,628 (retail wage * 0.95 midwest)

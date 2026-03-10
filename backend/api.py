@@ -120,6 +120,7 @@ def _build_military_answers(m: dict) -> MilitaryAnswers:
         enlistment_years=enlistment,
         use_gi_bill=m.get("use_gi_bill", True),
         gi_bill_major=Major(m.get("gi_bill_major", "undecided")),
+        civilian_industry=WorkforceIndustry(m.get("civilian_industry", "admin")),
     )
 
 

@@ -5,11 +5,11 @@ Age 18 to 18+N where N is user-configurable (default: 32 years, range: 10-50).
 Start age is always 18 (high school graduation).
 
 ## Paths Modeled
-1. 4-Year College (6 majors: STEM, Business, Healthcare, Liberal Arts, Education, Undecided)
-2. Community College + Transfer (2 years CC then 2 years university, same 6 majors)
-3. Trade / Apprenticeship (Electrician, Plumber, HVAC, Carpenter)
-4. Direct Workforce (Retail, Logistics, Food Service, Admin, Manufacturing)
-5. Military Enlistment (4-year service with optional GI Bill → college)
+1. 4-Year College (18 majors including CS, Engineering, Nursing, Business, etc.)
+2. Community College + Transfer (2 years CC then 2 years university, same majors)
+3. Trade / Apprenticeship (12 trades: Electrician, Plumber, HVAC, Carpenter, Welder, etc.)
+4. Direct Workforce (12 industries: Retail, Logistics, Admin, Manufacturing, Security, etc.)
+5. Military Enlistment (4-year service with optional GI Bill → college, or civilian industry choice)
 
 ## Three-Engine Architecture
 
@@ -31,7 +31,7 @@ Handles: at-home vs independent living, military low-expense years, GI Bill scho
 - Region (Northeast, Southeast, Midwest, Southwest, West Coast)
 - Living at home? For how many years?
 - Family savings for education
-- Path-specific: school type, major, trade type, industry, GI Bill toggle
+- Path-specific: school type, major, trade type, industry, GI Bill toggle, civilian industry (military no-GI-Bill)
 
 ## Core Outputs (Per Path)
 - Net worth over time (hero metric)
@@ -51,9 +51,9 @@ Handles: at-home vs independent living, military low-expense years, GI Bill scho
 - Deterministic growth (no stochastic/Monte Carlo)
 - Simplified flat tax rate: 18% effective (with GI Bill tax exemption for housing years)
 - Savings rate: % of net (take-home) income, capped at disposable after expenses + loan payments
-- Investment return: 7% annual
-- Loan: 6.5% interest, 10-year term, 6-month grace period, standard amortization
-- No inflation in V0 (results are nominal dollars)
+- Investment return: 6% real annual (after inflation)
+- Loan: 4.0% real interest, 10-year default term (user-adjustable 5-30), 6-month grace period, standard amortization
+- All values in real (inflation-adjusted) dollars — no separate inflation modeling needed
 - Monthly precision for loan amortization internally, annual output granularity
 
 ## Defaults Data Sources

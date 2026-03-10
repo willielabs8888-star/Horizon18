@@ -20,7 +20,7 @@ from defaults import (
     APPRENTICE_WAGES, JOURNEYMAN_SALARY,
     ENLISTED_ANNUAL_COMP, VETERAN_HIRING_PREMIUM,
     ENTRY_WAGES, EFFECTIVE_TAX_RATE,
-    GI_BILL, get_multipliers_for_metro,
+    GI_BILL, GRACE_PERIOD_MONTHS, get_multipliers_for_metro,
 )
 
 
@@ -76,8 +76,8 @@ def _build_college_career(
         if year < years_in_school:
             income.append(part_time)
         elif year == years_in_school:
-            # Grace period / job search — half year of income
-            income.append(base_salary * 0.5)
+            # Grace period — fraction of salary based on grace months
+            income.append(base_salary * (GRACE_PERIOD_MONTHS / 12))
         else:
             years_working = year - years_in_school
             income.append(base_salary * (1 + growth) ** years_working)
@@ -108,7 +108,7 @@ def _build_cc_career(
         if year < years_in_school:
             income.append(part_time)
         elif year == years_in_school:
-            income.append(base_salary * 0.5)
+            income.append(base_salary * (GRACE_PERIOD_MONTHS / 12))
         else:
             years_working = year - years_in_school
             income.append(base_salary * (1 + growth) ** years_working)
@@ -197,7 +197,7 @@ def _build_military_career(
     if answers.use_gi_bill:
         # Phase 2: GI Bill school (4 years, housing allowance is tax-exempt)
         gi_bill_annual = GI_BILL["monthly_housing"] * 12  # ~$28k/yr
-        gi_bill_school_years = 4
+        gi_bill_school_years = GI_BILL["months_of_benefits"] // 9  # 36mo / 9mo per academic year = 4
 
         for year_offset in range(gi_bill_school_years):
             year_idx = service_years + year_offset
@@ -222,7 +222,7 @@ def _build_military_career(
 
     else:
         # Phase 2: Direct civilian career (veteran premium)
-        base_industry_wage = ENTRY_WAGES["admin"] * salary_multiplier
+        base_industry_wage = ENTRY_WAGES[answers.civilian_industry.value] * salary_multiplier
         post_salary = base_industry_wage * (1 + VETERAN_HIRING_PREMIUM)
         growth = SALARY_GROWTH["military_civilian"]
 
