@@ -4386,6 +4386,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [authPage, setAuthPage] = useState(null); // "login" | "register" | null
   const [saveStatus, setSaveStatus] = useState(null); // "saving" | "saved" | "error" | null
+  const pendingSaveRef = useRef(null); // stash save data when user isn't logged in
 
   // Check for shared simulation link on load
   useEffect(() => {
@@ -4416,9 +4417,23 @@ function App() {
       }
     }
   }, []);
-  const handleLogin = u => {
+  const handleLogin = async u => {
     setUser(u);
     setAuthPage(null);
+    // If there's a pending save from before login, execute it now
+    if (pendingSaveRef.current) {
+      const {
+        results,
+        title,
+        quizState
+      } = pendingSaveRef.current;
+      pendingSaveRef.current = null;
+      const ok = await executeSave(results, title, quizState);
+      if (ok) {
+        setPage("dashboard");
+        window.scrollTo(0, 0);
+      }
+    }
   };
   const handleLogout = () => {
     clearAuth();
@@ -4438,14 +4453,9 @@ function App() {
     setSaveStatus(null);
     window.scrollTo(0, 0);
   };
-  const handleSave = async (results, customTitle) => {
-    if (!user) {
-      setAuthPage("login");
-      return;
-    }
+  const executeSave = async (results, customTitle, quizState) => {
     setSaveStatus("saving");
     try {
-      // Build a summary for dashboard cards
       const getLabel = r => r.scenario.name || r.scenario.instance_id || r.scenario.path_type;
       const summary = {
         paths: results.map(r => getLabel(r)),
@@ -4458,15 +4468,30 @@ function App() {
       await apiCall("/api/simulations/save", {
         method: "POST",
         body: JSON.stringify({
-          quiz_state: quizData,
+          quiz_state: quizState || quizData,
           title,
           results_summary: summary
         })
       });
       setSaveStatus("saved");
+      return true;
     } catch (e) {
       setSaveStatus("error");
+      return false;
     }
+  };
+  const handleSave = async (results, customTitle) => {
+    if (!user) {
+      // Stash the save intent, then prompt login
+      pendingSaveRef.current = {
+        results,
+        title: customTitle,
+        quizState: quizData
+      };
+      setAuthPage("login");
+      return;
+    }
+    await executeSave(results, customTitle);
   };
   const handleLoadSim = sim => {
     setQuizData(sim.quiz_state);
@@ -4484,11 +4509,17 @@ function App() {
       style: {
         cursor: "pointer"
       },
-      onClick: () => setAuthPage(null)
+      onClick: () => {
+        pendingSaveRef.current = null;
+        setAuthPage(null);
+      }
     }, /*#__PURE__*/React.createElement("h1", null, "Horizon18"), /*#__PURE__*/React.createElement("p", null, "Compare paths. Project outcomes. Decide with data.")), /*#__PURE__*/React.createElement(LoginPage, {
       onLogin: handleLogin,
       onSwitch: () => setAuthPage("register"),
-      onGuest: () => setAuthPage(null)
+      onGuest: () => {
+        pendingSaveRef.current = null;
+        setAuthPage(null);
+      }
     }));
   }
   if (authPage === "register") {

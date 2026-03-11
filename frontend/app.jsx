@@ -3085,6 +3085,7 @@
       const [user, setUser] = useState(null);
       const [authPage, setAuthPage] = useState(null); // "login" | "register" | null
       const [saveStatus, setSaveStatus] = useState(null); // "saving" | "saved" | "error" | null
+      const pendingSaveRef = useRef(null); // stash save data when user isn't logged in
 
       // Check for shared simulation link on load
       useEffect(() => {
@@ -3117,7 +3118,20 @@
         }
       }, []);
 
-      const handleLogin = (u) => { setUser(u); setAuthPage(null); };
+      const handleLogin = async (u) => {
+        setUser(u);
+        setAuthPage(null);
+        // If there's a pending save from before login, execute it now
+        if (pendingSaveRef.current) {
+          const { results, title, quizState } = pendingSaveRef.current;
+          pendingSaveRef.current = null;
+          const ok = await executeSave(results, title, quizState);
+          if (ok) {
+            setPage("dashboard");
+            window.scrollTo(0, 0);
+          }
+        }
+      };
       const handleLogout = () => { clearAuth(); setUser(null); setPage("quiz"); setQuizData(null); };
 
       const handleQuizComplete = (quiz) => {
@@ -3134,11 +3148,9 @@
         window.scrollTo(0, 0);
       };
 
-      const handleSave = async (results, customTitle) => {
-        if (!user) { setAuthPage("login"); return; }
+      const executeSave = async (results, customTitle, quizState) => {
         setSaveStatus("saving");
         try {
-          // Build a summary for dashboard cards
           const getLabel = (r) => r.scenario.name || r.scenario.instance_id || r.scenario.path_type;
           const summary = {
             paths: results.map(r => getLabel(r)),
@@ -3150,12 +3162,24 @@
           const title = customTitle || results.map(r => getLabel(r)).join(" vs ");
           await apiCall("/api/simulations/save", {
             method: "POST",
-            body: JSON.stringify({ quiz_state: quizData, title, results_summary: summary }),
+            body: JSON.stringify({ quiz_state: quizState || quizData, title, results_summary: summary }),
           });
           setSaveStatus("saved");
+          return true;
         } catch(e) {
           setSaveStatus("error");
+          return false;
         }
+      };
+
+      const handleSave = async (results, customTitle) => {
+        if (!user) {
+          // Stash the save intent, then prompt login
+          pendingSaveRef.current = { results, title: customTitle, quizState: quizData };
+          setAuthPage("login");
+          return;
+        }
+        await executeSave(results, customTitle);
       };
 
       const handleLoadSim = (sim) => {
@@ -3169,12 +3193,12 @@
       if (authPage === "login") {
         return (
           <div className="app">
-            <div className="header" style={{cursor: "pointer"}} onClick={() => setAuthPage(null)}>
+            <div className="header" style={{cursor: "pointer"}} onClick={() => { pendingSaveRef.current = null; setAuthPage(null); }}>
               <h1>Horizon18</h1>
               <p>Compare paths. Project outcomes. Decide with data.</p>
             </div>
             <LoginPage onLogin={handleLogin} onSwitch={() => setAuthPage("register")}
-              onGuest={() => setAuthPage(null)} />
+              onGuest={() => { pendingSaveRef.current = null; setAuthPage(null); }} />
           </div>
         );
       }
