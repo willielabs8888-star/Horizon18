@@ -1831,14 +1831,14 @@ function QuizPage({
     }, "Living at home typically means living with parents or family to reduce rent and utility costs.")));
   };
 
-  // Step 3: Salary review (editable estimates)
-  const fetchSalaryDefaults = metro => {
-    if (salaryFetchedMetro.current === metro && salaryDefaults) return;
+  // Step 3: Salary review — fetch defaults via useEffect (not during render)
+  useEffect(() => {
+    if (step !== 3) return; // Only fetch when on salary step
+    if (salaryFetchedMetro.current === shared.metro_area && salaryDefaults) return;
     setSalaryLoading(true);
-    fetch(`/api/salary-defaults?metro=${encodeURIComponent(metro)}`).then(r => r.json()).then(data => {
+    fetch(`/api/salary-defaults?metro=${encodeURIComponent(shared.metro_area)}`).then(r => r.json()).then(data => {
       setSalaryDefaults(data);
-      salaryFetchedMetro.current = metro;
-      // Pre-fill any instances that don't have overrides yet
+      salaryFetchedMetro.current = shared.metro_area;
       setInstances(prev => prev.map(inst => {
         const updated = {
           ...inst
@@ -1868,12 +1868,8 @@ function QuizPage({
         return updated;
       }));
     }).catch(() => {}).finally(() => setSalaryLoading(false));
-  };
+  }, [step, shared.metro_area]);
   const renderSalaryStep = () => {
-    // Fetch defaults when step loads
-    if (!salaryDefaults || salaryFetchedMetro.current !== shared.metro_area) {
-      fetchSalaryDefaults(shared.metro_area);
-    }
     const sorted = sortInstances(instances);
     const metroLabel = (metros.find(m => m.code === shared.metro_area) || {}).label || "National Average";
     return /*#__PURE__*/React.createElement("div", {
