@@ -2172,31 +2172,44 @@
                       is <strong>{fmtFull(gap)}</strong> more
                       than <strong style={{color: colorMap[worstId]}}>{labelMap[worstId]}</strong> ({fmtFull(worstNW)}).
                     </p>
-                    {sorted.filter(r => r.summary.year_debt_free).length > 0 && (
-                      <p style={{marginBottom: 12}}>
-                        <strong>Debt timelines:</strong>{" "}
-                        {sorted.filter(r => r.summary.year_debt_free).map(r => {
-                          const rid = r.scenario.instance_id || r.scenario.path_type;
-                          return `${labelMap[rid]} is debt-free at age ${r.summary.year_debt_free}`;
-                        }).join("; ")}
-                        {sorted.filter(r => !r.summary.year_debt_free && r.summary.total_cost_of_education === 0).length > 0 &&
-                          "; " + sorted.filter(r => !r.summary.year_debt_free && r.summary.total_cost_of_education === 0)
-                            .map(r => labelMap[r.scenario.instance_id || r.scenario.path_type]).join(", ") + " carry no student debt"
-                        }.
-                      </p>
-                    )}
-                    {sorted.filter(r => r.summary.debt_burden_ratio > 0).length > 0 && (
-                      <p style={{marginBottom: 12}}>
-                        <strong>Peak debt burden:</strong>{" "}
-                        {sorted.filter(r => r.summary.debt_burden_ratio > 0).map(r => {
-                          const rid = r.scenario.instance_id || r.scenario.path_type;
-                          const pct = (r.summary.debt_burden_ratio * 100).toFixed(0);
-                          const level = r.summary.debt_burden_ratio > 0.15 ? " (high)" : r.summary.debt_burden_ratio > 0.10 ? " (moderate)" : " (manageable)";
-                          return `${labelMap[rid]}: ${pct}% of income${level}`;
-                        }).join("; ")}.
-                        <span style={{color:"var(--text-dim)", fontSize:12}}> Peak annual loan payment as % of take-home pay. Under 10% is comfortable; over 15% can be a strain.</span>
-                      </p>
-                    )}
+                    {(() => {
+                      const debtPaths = sorted.filter(r => r.summary.year_debt_free || r.summary.debt_burden_ratio > 0 || r.summary.total_cost_of_education > 0);
+                      if (debtPaths.length === 0) return null;
+                      return (
+                        <div style={{marginBottom: 12}}>
+                          <strong style={{display:"block", marginBottom: 6}}>Debt Overview</strong>
+                          <table style={{width:"100%", borderCollapse:"collapse", fontSize:13}}>
+                            <thead>
+                              <tr style={{borderBottom:"2px solid var(--border)"}}>
+                                <th style={{textAlign:"left", padding:"6px 8px"}}>Path</th>
+                                <th style={{textAlign:"left", padding:"6px 8px"}}>Education Cost</th>
+                                <th style={{textAlign:"left", padding:"6px 8px"}}>Debt-Free Age</th>
+                                <th style={{textAlign:"left", padding:"6px 8px"}}>Peak Debt Burden</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sorted.map(r => {
+                                const rid = r.scenario.instance_id || r.scenario.path_type;
+                                const edCost = r.summary.total_cost_of_education || 0;
+                                const debtFreeAge = r.summary.year_debt_free;
+                                const burden = r.summary.debt_burden_ratio || 0;
+                                const burdenPct = (burden * 100).toFixed(0);
+                                const level = burden > 0.15 ? "high" : burden > 0.10 ? "moderate" : "manageable";
+                                return (
+                                  <tr key={rid} style={{borderBottom:"1px solid var(--border)"}}>
+                                    <td style={{padding:"6px 8px", color: colorMap[rid], fontWeight:600}}>{labelMap[rid]}</td>
+                                    <td style={{padding:"6px 8px"}}>{edCost > 0 ? fmtFull(edCost) : "None"}</td>
+                                    <td style={{padding:"6px 8px"}}>{debtFreeAge ? `Age ${debtFreeAge}` : edCost > 0 ? "Not within projection" : "No debt"}</td>
+                                    <td style={{padding:"6px 8px"}}>{burden > 0 ? `${burdenPct}% (${level})` : "—"}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                          <span style={{color:"var(--text-dim)", fontSize:11, display:"block", marginTop:4}}>Peak debt burden = peak annual loan payment as % of take-home pay. Under 10% is comfortable; over 15% can be a strain.</span>
+                        </div>
+                      );
+                    })()}
                     {sorted.filter(r => r.summary.loan_extended).length > 0 && (
                       <p style={{marginBottom: 12, padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 8, fontSize: 13}}>
                         <strong style={{color: "#f59e0b"}}>Loan repayment adjusted:</strong>{" "}
@@ -2453,7 +2466,7 @@
                               <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Income:</strong> {incomeExplain}</p>
                               <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Net income:</strong> Gross pay minus an estimated tax rate (~22%), giving your take-home pay.</p>
                               <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Living expenses:</strong> Based on your region's cost of living. Reduced by half during the grace period year (you graduate mid-year).</p>
-                              <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Savings:</strong> Whatever is left after expenses and loan payments, multiplied by your savings rate. During school, part-time income goes toward tuition first.</p>
+                              <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Savings:</strong> Your savings target is your savings rate (e.g. 25%) applied to your take-home pay. If there isn't enough left after expenses and loan payments, you save what you can — so your actual savings rate may be lower than the target. During school, part-time income goes toward tuition first.</p>
                               <p style={{marginBottom: 8}}><strong style={{color: "var(--text)"}}>Investments:</strong> Last year's balance grows at 6% (real return above inflation), plus this year's new savings.</p>
                               <p style={{marginBottom: 0}}><strong style={{color: "var(--text)"}}>Net worth:</strong> Investment balance minus all remaining debt (student loans + any consumer debt).</p>
                             </div>
