@@ -2053,11 +2053,7 @@
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 24px",marginBottom:16}}>
                   <div><strong>Location:</strong> {metroLabel}</div>
                   <div><strong>Living at home:</strong> {quiz.living_at_home ? `Yes (${quiz.years_at_home} year${quiz.years_at_home > 1 ? "s" : ""})` : "No"}</div>
-                  <div><strong>Family savings:</strong> {fmtFull(quiz.family_savings || 0)}</div>
-                  <div><strong>Projection:</strong> {projYears} years (age 18–{18 + projYears - 1})</div>
-                  <div><strong>Savings rate:</strong> {(savingsRate * 100).toFixed(0)}%</div>
-                  <div><strong>Investment return:</strong> {(investReturn * 100).toFixed(1)}%</div>
-                  <div><strong>Tax rate:</strong> {(taxRate * 100).toFixed(0)}%</div>
+                  <div><strong>Family education savings:</strong> {fmtFull(quiz.family_savings || 0)}</div>
                 </div>
                 <div style={{borderTop:"1px solid var(--border-color)",paddingTop:12}}>
                   <strong>Paths Compared ({instances.length}):</strong>
@@ -2071,7 +2067,7 @@
                         <div style={{fontWeight:600,color}}>{scenarioName}</div>
                         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 16px",color:"var(--text-dim)",fontSize:12}}>
                           {matchResult && <span>Starting salary: {fmtFull(matchResult.scenario.starting_salary)}</span>}
-                          {(pt === "college" || pt === "cc_transfer") && <span>Loan term: {inst.loan_term_years || 10} years</span>}
+                          {(pt === "college" || pt === "cc_transfer" || pt === "trade") && <span>Loan term: {inst.loan_term_years || 10} years</span>}
                           {(pt === "college" || pt === "cc_transfer") && <span>Part-time work: {inst.part_time_work ? `Yes (${fmtFull(inst.part_time_income || 0)}/yr)` : "No"}</span>}
                           {matchResult && matchResult.summary && <span>Total education cost: {fmtFull(matchResult.summary.total_cost_of_education)}</span>}
                         </div>

@@ -3009,7 +3009,7 @@ function ResultsPage({
         gap: "8px 24px",
         marginBottom: 16
       }
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Location:"), " ", metroLabel), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Living at home:"), " ", quiz.living_at_home ? `Yes (${quiz.years_at_home} year${quiz.years_at_home > 1 ? "s" : ""})` : "No"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Family savings:"), " ", fmtFull(quiz.family_savings || 0)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Projection:"), " ", projYears, " years (age 18\u2013", 18 + projYears - 1, ")"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Savings rate:"), " ", (savingsRate * 100).toFixed(0), "%"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Investment return:"), " ", (investReturn * 100).toFixed(1), "%"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Tax rate:"), " ", (taxRate * 100).toFixed(0), "%")), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Location:"), " ", metroLabel), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Living at home:"), " ", quiz.living_at_home ? `Yes (${quiz.years_at_home} year${quiz.years_at_home > 1 ? "s" : ""})` : "No"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Family education savings:"), " ", fmtFull(quiz.family_savings || 0))), /*#__PURE__*/React.createElement("div", {
       style: {
         borderTop: "1px solid var(--border-color)",
         paddingTop: 12
@@ -3039,7 +3039,7 @@ function ResultsPage({
           color: "var(--text-dim)",
           fontSize: 12
         }
-      }, matchResult && /*#__PURE__*/React.createElement("span", null, "Starting salary: ", fmtFull(matchResult.scenario.starting_salary)), (pt === "college" || pt === "cc_transfer") && /*#__PURE__*/React.createElement("span", null, "Loan term: ", inst.loan_term_years || 10, " years"), (pt === "college" || pt === "cc_transfer") && /*#__PURE__*/React.createElement("span", null, "Part-time work: ", inst.part_time_work ? `Yes (${fmtFull(inst.part_time_income || 0)}/yr)` : "No"), matchResult && matchResult.summary && /*#__PURE__*/React.createElement("span", null, "Total education cost: ", fmtFull(matchResult.summary.total_cost_of_education))));
+      }, matchResult && /*#__PURE__*/React.createElement("span", null, "Starting salary: ", fmtFull(matchResult.scenario.starting_salary)), (pt === "college" || pt === "cc_transfer" || pt === "trade") && /*#__PURE__*/React.createElement("span", null, "Loan term: ", inst.loan_term_years || 10, " years"), (pt === "college" || pt === "cc_transfer") && /*#__PURE__*/React.createElement("span", null, "Part-time work: ", inst.part_time_work ? `Yes (${fmtFull(inst.part_time_income || 0)}/yr)` : "No"), matchResult && matchResult.summary && /*#__PURE__*/React.createElement("span", null, "Total education cost: ", fmtFull(matchResult.summary.total_cost_of_education))));
     }))));
   })(), /*#__PURE__*/React.createElement("div", {
     className: "card"
