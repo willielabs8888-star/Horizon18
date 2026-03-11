@@ -37,6 +37,7 @@ def run_projection(scenario: Scenario) -> SimResult:
     cumulative_taxes = 0.0
     loan_payment_was_capped = False  # Track if payments ever exceeded disposable income
     repayment_start_year = None      # Track when repayment began
+    investments_used_for_debt = 0.0  # Track total investments liquidated to pay loans
 
     ed = scenario.education
     career = scenario.career
@@ -181,6 +182,23 @@ def run_projection(scenario: Scenario) -> SimResult:
 
                     total_interest_paid += interest_this_year
 
+        # --- RATIONAL DEBT PAYDOWN FROM INVESTMENTS ---
+        # If the loan balance grew this year (interest exceeds what was
+        # paid in principal — i.e. payments are insufficient), and the
+        # borrower has investments, it's rational to liquidate investments
+        # to reduce the loan rather than holding assets while debt spirals.
+        if (student_debt > 0
+                and investment_balance > 0
+                and year >= school_years):
+            prev_debt = snapshots[-1].debt_remaining if snapshots else 0.0
+            if student_debt > prev_debt and prev_debt > 0:
+                debt_growth = student_debt - prev_debt
+                drawdown = min(investment_balance, debt_growth, student_debt)
+                if drawdown > 0:
+                    investment_balance -= drawdown
+                    student_debt -= drawdown
+                    investments_used_for_debt += drawdown
+
         # --- SAVINGS + INVESTMENT ---
         # Disposable income = what's left after expenses and loan payments.
         # During school years, part-time income already used for tuition
@@ -291,5 +309,6 @@ def run_projection(scenario: Scenario) -> SimResult:
         loan_extended=loan_payment_was_capped,
         loan_term_original=ed.loan_term_years,
         loan_term_actual=loan_term_actual,
+        investments_used_for_debt=round(investments_used_for_debt, 2),
         **metrics,
     )

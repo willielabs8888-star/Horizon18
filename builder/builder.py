@@ -14,6 +14,7 @@ from engines.education import build_education_profile
 from engines.career import build_career_profile
 from engines.living import build_living_profile
 from defaults import SAVINGS_RATE, INVESTMENT_RETURN
+from defaults.regions import get_metro_label
 
 DEFAULT_PROJECTION_YEARS = 32
 
@@ -77,8 +78,23 @@ def build_scenario(
     )
 
     # --- Compose ---
-    region_label = quiz.region.value.replace("_", " ").title()
-    name = f"{education.label} — {region_label}"
+    # Use metro city name instead of generic region (e.g. "Pittsburgh, PA" not "Northeast")
+    location_label = get_metro_label(metro_area) if metro_area != "national_avg" else quiz.region.value.replace("_", " ").title()
+
+    # Enrich name for workforce and military paths with sector/major details
+    ed_label = education.label
+    if path_type == PathType.WORKFORCE and quiz.workforce:
+        industry = quiz.workforce.industry.value.replace("_", " ").title()
+        ed_label = f"Direct Workforce – {industry}"
+    elif path_type == PathType.MILITARY and quiz.military:
+        if quiz.military.use_gi_bill and quiz.military.gi_bill_major:
+            major_name = quiz.military.gi_bill_major.value.replace("_", " ").title()
+            ed_label = f"Military Enlistment → GI Bill – {major_name}"
+        elif not quiz.military.use_gi_bill and quiz.military.civilian_industry:
+            civ = quiz.military.civilian_industry.value.replace("_", " ").title()
+            ed_label = f"Military → Civilian – {civ}"
+
+    name = f"{ed_label} — {location_label}"
 
     return Scenario(
         name=name,

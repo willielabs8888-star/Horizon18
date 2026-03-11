@@ -362,3 +362,6 @@ class SimResult:
     loan_extended: bool = False         # True if payments were capped by income
     loan_term_original: int = 0         # User-selected repayment term (years)
     loan_term_actual: int = 0           # Actual years to pay off (may be longer)
+
+    # Investment-to-debt drawdown tracking
+    investments_used_for_debt: float = 0.0   # Total investments liquidated to pay loans

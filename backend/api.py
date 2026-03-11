@@ -461,6 +461,7 @@ def _serialize_result(result: SimResult) -> dict:
             "loan_extended": result.loan_extended,
             "loan_term_original": result.loan_term_original,
             "loan_term_actual": result.loan_term_actual,
+            "investments_used_for_debt": result.investments_used_for_debt,
         },
     }
 

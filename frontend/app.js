@@ -2972,7 +2972,76 @@ function ResultsPage({
     colorMap: colorMap,
     labelMap: labelMap,
     savingsRate: savingsRate
-  })), /*#__PURE__*/React.createElement("div", {
+  })), (() => {
+    const metroLabel = LABEL_MAP[quiz.metro_area] || (quiz.metro_area || "").replace("_", " ").split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || "National Average";
+    const instances = quiz.path_instances || [];
+    return /*#__PURE__*/React.createElement("details", {
+      className: "card",
+      style: {
+        cursor: "pointer"
+      }
+    }, /*#__PURE__*/React.createElement("summary", {
+      style: {
+        fontWeight: 600,
+        fontSize: 16,
+        padding: "4px 0",
+        listStyle: "none",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Simulation Configuration"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: "var(--text-dim)",
+        fontWeight: 400
+      }
+    }, "Click to expand")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 12,
+        fontSize: 13,
+        lineHeight: 1.7
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "8px 24px",
+        marginBottom: 16
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Location:"), " ", metroLabel), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Living at home:"), " ", quiz.living_at_home ? `Yes (${quiz.years_at_home} year${quiz.years_at_home > 1 ? "s" : ""})` : "No"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Family savings:"), " ", fmtFull(quiz.family_savings || 0)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Projection:"), " ", projYears, " years (age 18\u2013", 18 + projYears - 1, ")"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Savings rate:"), " ", (savingsRate * 100).toFixed(0), "%"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Investment return:"), " ", (investReturn * 100).toFixed(1), "%"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "Tax rate:"), " ", (taxRate * 100).toFixed(0), "%")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        borderTop: "1px solid var(--border-color)",
+        paddingTop: 12
+      }
+    }, /*#__PURE__*/React.createElement("strong", null, "Paths Compared (", instances.length, "):"), instances.map((inst, idx) => {
+      const pt = inst.path_type;
+      const color = sorted[idx] ? colorMap[sorted[idx].scenario.instance_id || sorted[idx].scenario.path_type] || "var(--text-main)" : "var(--text-main)";
+      const matchResult = sorted.find(r => (r.scenario.instance_id || r.scenario.path_type) === inst.instance_id);
+      const scenarioName = matchResult ? matchResult.scenario.name : inst.instance_id || pt;
+      return /*#__PURE__*/React.createElement("div", {
+        key: inst.instance_id || idx,
+        style: {
+          marginTop: 8,
+          paddingLeft: 12,
+          borderLeft: `3px solid ${color}`
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontWeight: 600,
+          color
+        }
+      }, scenarioName), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "2px 16px",
+          color: "var(--text-dim)",
+          fontSize: 12
+        }
+      }, matchResult && /*#__PURE__*/React.createElement("span", null, "Starting salary: ", fmtFull(matchResult.scenario.starting_salary)), (pt === "college" || pt === "cc_transfer") && /*#__PURE__*/React.createElement("span", null, "Loan term: ", inst.loan_term_years || 10, " years"), (pt === "college" || pt === "cc_transfer") && /*#__PURE__*/React.createElement("span", null, "Part-time work: ", inst.part_time_work ? `Yes (${fmtFull(inst.part_time_income || 0)}/yr)` : "No"), matchResult && matchResult.summary && /*#__PURE__*/React.createElement("span", null, "Total education cost: ", fmtFull(matchResult.summary.total_cost_of_education))));
+    }))));
+  })(), /*#__PURE__*/React.createElement("div", {
     className: "card"
   }, /*#__PURE__*/React.createElement("h2", null, "Key Insights"), /*#__PURE__*/React.createElement("p", {
     className: "subtitle"
@@ -3125,7 +3194,27 @@ function ResultsPage({
       style: {
         color: "var(--text-dim)"
       }
-    }, "Loan payments are capped at what you can afford after living expenses. The remaining balance continues accruing interest.")), (() => {
+    }, "Loan payments are capped at what you can afford after living expenses. The remaining balance continues accruing interest.")), sorted.filter(r => r.summary.investments_used_for_debt > 0).length > 0 && /*#__PURE__*/React.createElement("p", {
+      style: {
+        marginBottom: 12,
+        padding: "10px 14px",
+        background: "rgba(59,130,246,0.08)",
+        border: "1px solid rgba(59,130,246,0.25)",
+        borderRadius: 8,
+        fontSize: 13
+      }
+    }, /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: "#3b82f6"
+      }
+    }, "Investments redirected to debt:"), " ", sorted.filter(r => r.summary.investments_used_for_debt > 0).map(r => {
+      const rid = r.scenario.instance_id || r.scenario.path_type;
+      return `${labelMap[rid]}: ${fmtFull(r.summary.investments_used_for_debt)} used`;
+    }).join("; "), ".", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "var(--text-dim)"
+      }
+    }, "Because the loan balance was growing faster than income could repay it, the model used available investments to reduce the loan principal. This is a rational financial decision \u2014 paying down high-interest debt instead of holding lower-return investments.")), (() => {
       const negCashflow = sorted.filter(r => r.snapshots.some(s => s.net_income - s.living_expenses - s.loan_payment < 0));
       if (negCashflow.length === 0) return null;
       return /*#__PURE__*/React.createElement("p", {

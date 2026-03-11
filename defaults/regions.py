@@ -184,3 +184,12 @@ def get_metro_count() -> int:
     """Return total number of metros in database."""
     _load_metros()
     return len(_METRO_LIST)
+
+
+def get_metro_label(code: str) -> str:
+    """Return the human-readable label for a metro code, e.g. 'Pittsburgh, PA'."""
+    _load_metros()
+    for m in _METRO_LIST:
+        if m["code"] == code:
+            return m["label"]
+    return code.replace("_", " ").title()  # Fallback

@@ -2039,6 +2039,51 @@
             )}
           </div>
 
+          {/* Simulation Configuration Summary */}
+          {(() => {
+            const metroLabel = LABEL_MAP[quiz.metro_area] || (quiz.metro_area || "").replace("_", " ").split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || "National Average";
+            const instances = quiz.path_instances || [];
+            return (
+            <details className="card" style={{cursor:"pointer"}}>
+              <summary style={{fontWeight:600,fontSize:16,padding:"4px 0",listStyle:"none",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span>Simulation Configuration</span>
+                <span style={{fontSize:12,color:"var(--text-dim)",fontWeight:400}}>Click to expand</span>
+              </summary>
+              <div style={{marginTop:12,fontSize:13,lineHeight:1.7}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 24px",marginBottom:16}}>
+                  <div><strong>Location:</strong> {metroLabel}</div>
+                  <div><strong>Living at home:</strong> {quiz.living_at_home ? `Yes (${quiz.years_at_home} year${quiz.years_at_home > 1 ? "s" : ""})` : "No"}</div>
+                  <div><strong>Family savings:</strong> {fmtFull(quiz.family_savings || 0)}</div>
+                  <div><strong>Projection:</strong> {projYears} years (age 18–{18 + projYears - 1})</div>
+                  <div><strong>Savings rate:</strong> {(savingsRate * 100).toFixed(0)}%</div>
+                  <div><strong>Investment return:</strong> {(investReturn * 100).toFixed(1)}%</div>
+                  <div><strong>Tax rate:</strong> {(taxRate * 100).toFixed(0)}%</div>
+                </div>
+                <div style={{borderTop:"1px solid var(--border-color)",paddingTop:12}}>
+                  <strong>Paths Compared ({instances.length}):</strong>
+                  {instances.map((inst, idx) => {
+                    const pt = inst.path_type;
+                    const color = sorted[idx] ? (colorMap[(sorted[idx].scenario.instance_id || sorted[idx].scenario.path_type)] || "var(--text-main)") : "var(--text-main)";
+                    const matchResult = sorted.find(r => (r.scenario.instance_id || r.scenario.path_type) === inst.instance_id);
+                    const scenarioName = matchResult ? matchResult.scenario.name : (inst.instance_id || pt);
+                    return (
+                      <div key={inst.instance_id || idx} style={{marginTop:8,paddingLeft:12,borderLeft:`3px solid ${color}`}}>
+                        <div style={{fontWeight:600,color}}>{scenarioName}</div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 16px",color:"var(--text-dim)",fontSize:12}}>
+                          {matchResult && <span>Starting salary: {fmtFull(matchResult.scenario.starting_salary)}</span>}
+                          {(pt === "college" || pt === "cc_transfer") && <span>Loan term: {inst.loan_term_years || 10} years</span>}
+                          {(pt === "college" || pt === "cc_transfer") && <span>Part-time work: {inst.part_time_work ? `Yes (${fmtFull(inst.part_time_income || 0)}/yr)` : "No"}</span>}
+                          {matchResult && matchResult.summary && <span>Total education cost: {fmtFull(matchResult.summary.total_cost_of_education)}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </details>
+            );
+          })()}
+
           {/* Key insights */}
           <div className="card">
             <h2>Key Insights</h2>
@@ -2167,6 +2212,16 @@
                           return `${labelMap[rid]}: selected ${orig}-year repayment, but income-based payments extend it to ~${actual} years`;
                         }).join("; ")}.
                         <br /><span style={{color: "var(--text-dim)"}}>Loan payments are capped at what you can afford after living expenses. The remaining balance continues accruing interest.</span>
+                      </p>
+                    )}
+                    {sorted.filter(r => r.summary.investments_used_for_debt > 0).length > 0 && (
+                      <p style={{marginBottom: 12, padding: "10px 14px", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 8, fontSize: 13}}>
+                        <strong style={{color: "#3b82f6"}}>Investments redirected to debt:</strong>{" "}
+                        {sorted.filter(r => r.summary.investments_used_for_debt > 0).map(r => {
+                          const rid = r.scenario.instance_id || r.scenario.path_type;
+                          return `${labelMap[rid]}: ${fmtFull(r.summary.investments_used_for_debt)} used`;
+                        }).join("; ")}.
+                        <br /><span style={{color: "var(--text-dim)"}}>Because the loan balance was growing faster than income could repay it, the model used available investments to reduce the loan principal. This is a rational financial decision — paying down high-interest debt instead of holding lower-return investments.</span>
                       </p>
                     )}
                     {(() => {
