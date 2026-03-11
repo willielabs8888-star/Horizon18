@@ -2435,17 +2435,20 @@ function ResultsPage({
   const [savingsRate, setSavingsRate] = useState(0.10);
   const [investReturn, setInvestReturn] = useState(0.06);
   const [taxRate, setTaxRate] = useState(REGION_TAX_DEFAULTS[quiz.region] || 0.22);
+  const [loanRate, setLoanRate] = useState(0.04);
   const [startAge, setStartAge] = useState(18);
 
   // Refs to always have current slider values (avoids stale closures)
   const savingsRateRef = useRef(savingsRate);
   const investReturnRef = useRef(investReturn);
   const taxRateRef = useRef(taxRate);
+  const loanRateRef = useRef(loanRate);
   const startAgeRef = useRef(startAge);
   const projYearsRef = useRef(projYears);
   savingsRateRef.current = savingsRate;
   investReturnRef.current = investReturn;
   taxRateRef.current = taxRate;
+  loanRateRef.current = loanRate;
   startAgeRef.current = startAge;
   projYearsRef.current = projYears;
 
@@ -2457,7 +2460,7 @@ function ResultsPage({
   const instances = quiz.path_instances || [];
   const colorMap = buildColorMap(instances);
   const labelMap = buildLabelMap(instances, results);
-  const fetchData = useCallback((years, sr, ir, tr, sa) => {
+  const fetchData = useCallback((years, sr, ir, tr, lr, sa) => {
     setLoading(true);
     setError(null);
     const body = {
@@ -2466,6 +2469,7 @@ function ResultsPage({
       savings_rate: sr,
       investment_return_rate: ir,
       tax_rate: tr,
+      loan_interest_rate: lr,
       start_age: sa
     };
     fetch("/api/simulate", {
@@ -2487,19 +2491,19 @@ function ResultsPage({
     });
   }, [quiz]);
   useEffect(() => {
-    fetchData(projYears, savingsRate, investReturn, taxRate, startAge);
+    fetchData(projYears, savingsRate, investReturn, taxRate, loanRate, startAge);
   }, []);
   const handleSlider = e => {
     const y = parseInt(e.target.value);
     setProjYears(y);
     if (sliderTimeout.current) clearTimeout(sliderTimeout.current);
-    sliderTimeout.current = setTimeout(() => fetchData(y, savingsRateRef.current, investReturnRef.current, taxRateRef.current, startAgeRef.current), 200);
+    sliderTimeout.current = setTimeout(() => fetchData(y, savingsRateRef.current, investReturnRef.current, taxRateRef.current, loanRateRef.current, startAgeRef.current), 200);
   };
   const handleAssumptionChange = (setter, value) => {
     setter(value);
     if (assumptionTimeout.current) clearTimeout(assumptionTimeout.current);
     assumptionTimeout.current = setTimeout(() => {
-      fetchData(projYearsRef.current, savingsRateRef.current, investReturnRef.current, taxRateRef.current, startAgeRef.current);
+      fetchData(projYearsRef.current, savingsRateRef.current, investReturnRef.current, taxRateRef.current, loanRateRef.current, startAgeRef.current);
     }, 300);
   };
   if (loading && !results) {
@@ -2857,7 +2861,11 @@ function ResultsPage({
       color: "var(--text-dim)",
       marginTop: 4
     }
-  }, "Default: 6%/year (real, after inflation). Conservative: 4%. Aggressive: 8%.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, "Default: 6%/year (real, after inflation). Conservative: 4%. Aggressive: 8%.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "space-between",
@@ -2894,7 +2902,44 @@ function ResultsPage({
       color: "var(--text-dim)",
       marginTop: 4
     }
-  }, "Blended federal + state + payroll tax burden. ", LABEL_MAP[quiz.metro_area] || LABEL_MAP[quiz.region], " region average: ", Math.round((REGION_TAX_DEFAULTS[quiz.region] || 0.22) * 100), "%.")))), /*#__PURE__*/React.createElement("div", {
+  }, "Blended federal + state + payroll tax burden. ", LABEL_MAP[quiz.metro_area] || LABEL_MAP[quiz.region], " region average: ", Math.round((REGION_TAX_DEFAULTS[quiz.region] || 0.22) * 100), "%.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 13
+    }
+  }, "Student Loan Interest Rate"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: "var(--accent)"
+    }
+  }, (loanRate * 100).toFixed(1), "%")), /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: 0,
+    max: 120,
+    step: 5,
+    value: Math.round(loanRate * 1000),
+    onChange: e => {
+      const v = parseInt(e.target.value) / 1000;
+      handleAssumptionChange(setLoanRate, v);
+    },
+    style: {
+      width: "100%",
+      accentColor: "var(--accent)",
+      cursor: "pointer"
+    }
+  }), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "var(--text-dim)",
+      marginTop: 4
+    }
+  }, "Real rate after inflation. Default: 4.0% (nominal ~6.5% minus ~2.5% inflation). Federal loans: 3\u20135%. Private loans: 4\u20138%.")))), /*#__PURE__*/React.createElement("div", {
     className: "summary-grid"
   }, sorted.map((r, i) => {
     const id = r.scenario.instance_id || r.scenario.path_type;

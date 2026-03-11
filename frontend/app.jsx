@@ -1730,17 +1730,20 @@
       const [savingsRate, setSavingsRate] = useState(0.10);
       const [investReturn, setInvestReturn] = useState(0.06);
       const [taxRate, setTaxRate] = useState(REGION_TAX_DEFAULTS[quiz.region] || 0.22);
+      const [loanRate, setLoanRate] = useState(0.04);
       const [startAge, setStartAge] = useState(18);
 
       // Refs to always have current slider values (avoids stale closures)
       const savingsRateRef = useRef(savingsRate);
       const investReturnRef = useRef(investReturn);
       const taxRateRef = useRef(taxRate);
+      const loanRateRef = useRef(loanRate);
       const startAgeRef = useRef(startAge);
       const projYearsRef = useRef(projYears);
       savingsRateRef.current = savingsRate;
       investReturnRef.current = investReturn;
       taxRateRef.current = taxRate;
+      loanRateRef.current = loanRate;
       startAgeRef.current = startAge;
       projYearsRef.current = projYears;
 
@@ -1753,7 +1756,7 @@
       const colorMap = buildColorMap(instances);
       const labelMap = buildLabelMap(instances, results);
 
-      const fetchData = useCallback((years, sr, ir, tr, sa) => {
+      const fetchData = useCallback((years, sr, ir, tr, lr, sa) => {
         setLoading(true);
         setError(null);
         const body = {
@@ -1762,6 +1765,7 @@
           savings_rate: sr,
           investment_return_rate: ir,
           tax_rate: tr,
+          loan_interest_rate: lr,
           start_age: sa,
         };
 
@@ -1779,20 +1783,20 @@
           .catch(e => { setError(e.message); setLoading(false); });
       }, [quiz]);
 
-      useEffect(() => { fetchData(projYears, savingsRate, investReturn, taxRate, startAge); }, []);
+      useEffect(() => { fetchData(projYears, savingsRate, investReturn, taxRate, loanRate, startAge); }, []);
 
       const handleSlider = (e) => {
         const y = parseInt(e.target.value);
         setProjYears(y);
         if (sliderTimeout.current) clearTimeout(sliderTimeout.current);
-        sliderTimeout.current = setTimeout(() => fetchData(y, savingsRateRef.current, investReturnRef.current, taxRateRef.current, startAgeRef.current), 200);
+        sliderTimeout.current = setTimeout(() => fetchData(y, savingsRateRef.current, investReturnRef.current, taxRateRef.current, loanRateRef.current, startAgeRef.current), 200);
       };
 
       const handleAssumptionChange = (setter, value) => {
         setter(value);
         if (assumptionTimeout.current) clearTimeout(assumptionTimeout.current);
         assumptionTimeout.current = setTimeout(() => {
-          fetchData(projYearsRef.current, savingsRateRef.current, investReturnRef.current, taxRateRef.current, startAgeRef.current);
+          fetchData(projYearsRef.current, savingsRateRef.current, investReturnRef.current, taxRateRef.current, loanRateRef.current, startAgeRef.current);
         }, 300);
       };
 
@@ -1960,7 +1964,7 @@
                   </p>
                 </div>
 
-                <div>
+                <div style={{marginBottom: 20}}>
                   <div style={{display: "flex", justifyContent: "space-between", marginBottom: 6}}>
                     <label style={{fontSize: 13}}>Estimated Effective Income Tax Rate</label>
                     <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{Math.round(taxRate * 100)}%</span>
@@ -1970,6 +1974,19 @@
                     style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
                   <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
                     Blended federal + state + payroll tax burden. {LABEL_MAP[quiz.metro_area] || LABEL_MAP[quiz.region]} region average: {Math.round((REGION_TAX_DEFAULTS[quiz.region] || 0.22) * 100)}%.
+                  </p>
+                </div>
+
+                <div>
+                  <div style={{display: "flex", justifyContent: "space-between", marginBottom: 6}}>
+                    <label style={{fontSize: 13}}>Student Loan Interest Rate</label>
+                    <span style={{fontSize: 13, fontWeight: 600, color: "var(--accent)"}}>{(loanRate * 100).toFixed(1)}%</span>
+                  </div>
+                  <input type="range" min={0} max={120} step={5} value={Math.round(loanRate * 1000)}
+                    onChange={e => { const v = parseInt(e.target.value) / 1000; handleAssumptionChange(setLoanRate, v); }}
+                    style={{width: "100%", accentColor: "var(--accent)", cursor: "pointer"}} />
+                  <p style={{fontSize: 11, color: "var(--text-dim)", marginTop: 4}}>
+                    Real rate after inflation. Default: 4.0% (nominal ~6.5% minus ~2.5% inflation). Federal loans: 3–5%. Private loans: 4–8%.
                   </p>
                 </div>
               </div>

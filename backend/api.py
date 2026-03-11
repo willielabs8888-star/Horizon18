@@ -184,6 +184,12 @@ def _validate_financial_overrides(body: dict) -> dict | None:
         if tr < 0.10 or tr > 0.40:
             return {"status": 422, "body": {"error": "tax_rate must be between 0.10 and 0.40."}}
 
+    loan_interest_rate = body.get("loan_interest_rate")
+    if loan_interest_rate is not None:
+        lr = float(loan_interest_rate)
+        if lr < 0.0 or lr > 0.12:
+            return {"status": 422, "body": {"error": "loan_interest_rate must be between 0 and 0.12."}}
+
     return None
 
 
@@ -203,6 +209,10 @@ def _apply_financial_overrides(scenario, body: dict) -> None:
         scenario.investment_return_rate = float(investment_return_rate)
     if tax_rate is not None:
         scenario.career.effective_tax_rate = float(tax_rate)
+
+    loan_interest_rate = body.get("loan_interest_rate")
+    if loan_interest_rate is not None:
+        scenario.education.loan_interest_rate = float(loan_interest_rate)
 
     start_age = body.get("start_age")
     if start_age is not None:
