@@ -2389,21 +2389,17 @@
                 </div>
                 {showTable && (
                   <div style={{borderTop: "1px solid var(--border)"}}>
-                    {/* Path tabs */}
-                    <div style={{display: "flex", gap: 0, borderBottom: "1px solid var(--border)", overflowX: "auto"}}>
-                      {results.map(r => {
-                        const id = r.scenario.instance_id || r.scenario.path_type;
-                        return (
-                          <button key={id} onClick={() => setTableTab(id)}
-                            style={{padding: "10px 16px", fontSize: 12, fontWeight: effectiveTab === id ? 600 : 400,
-                              background: effectiveTab === id ? "var(--surface)" : "transparent",
-                              borderBottom: effectiveTab === id ? "2px solid var(--accent)" : "2px solid transparent",
-                              color: effectiveTab === id ? "var(--accent)" : "var(--text-dim)",
-                              border: "none", cursor: "pointer", whiteSpace: "nowrap"}}>
-                            {labelMap[id] || id}
-                          </button>
-                        );
-                      })}
+                    {/* Path selector */}
+                    <div style={{padding: "12px 20px", borderBottom: "1px solid var(--border)"}}>
+                      <label style={{fontSize: 12, color: "var(--text-dim)", marginRight: 8}}>Select path:</label>
+                      <select value={effectiveTab} onChange={e => setTableTab(e.target.value)}
+                        className="form-input"
+                        style={{fontSize: 13, padding: "6px 12px", minWidth: 200, maxWidth: "100%"}}>
+                        {results.map(r => {
+                          const id = r.scenario.instance_id || r.scenario.path_type;
+                          return <option key={id} value={id}>{labelMap[id] || id}</option>;
+                        })}
+                      </select>
                     </div>
                     {/* Path-specific reading guide */}
                     {activeResult && (() => {
